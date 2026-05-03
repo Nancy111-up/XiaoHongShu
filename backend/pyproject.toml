@@ -1,0 +1,51 @@
+[project]
+name = "xhs-brand-agent"
+version = "0.1.0"
+description = "小红书自主品牌运营专家 — AI Agent 后端服务"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi[standard]>=0.115,<1.0",
+    "langgraph>=1.0,<2.0",
+    "langchain>=1.0,<2.0",
+    "langchain-community>=0.3,<1.0",
+    "langgraph-checkpoint-sqlite>=2.0,<3.0",
+    "tavily-python>=0.5,<1.0",
+    "httpx>=0.28,<1.0",
+    "pydantic-settings>=2.7,<3.0",
+    "python-dotenv>=1.0,<2.0",
+    "sqlalchemy[asyncio]>=2.0,<3.0",
+    "aiosqlite>=0.20,<1.0",
+    "alembic>=1.14,<2.0",
+    "structlog>=24.4,<25.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.8,<1.0",
+    "mypy>=1.14,<2.0",
+    "pytest>=8.4,<9.0",
+    "pytest-asyncio>=0.25,<1.0",
+]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "strict"
+testpaths = ["tests"]
