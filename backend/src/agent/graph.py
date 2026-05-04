@@ -28,12 +28,12 @@ async def human_review_node(state: AgentState) -> dict:
     decision = interrupt({
         "action": "waiting_for_human",
         "draft_copy": state["draft_copy"],
-        "topics": state.get("generated_topics", []),
+        "topic_cards": state.get("topic_cards", []),
     })
 
     # Command(resume=...) 注入的判决
     return {
-        "human_action": decision.get("action", ""),
+        "feedback_action": decision.get("action", ""),
         "human_feedback": decision.get("feedback", ""),
         "edited_draft_copy": decision.get("edited_content", ""),
         "current_step": "review_complete",
@@ -51,11 +51,8 @@ def route_compliance(state: AgentState) -> str:
 
 
 def route_after_review(state: AgentState) -> str:
-    action = state.get("human_action", "")
+    action = state.get("feedback_action", "")
     if action == "approve":
-        # 如果用户手动改了字，把编辑版本设为最终稿
-        if state.get("edited_draft_copy"):
-            return END
         return END
 
     # revise：回流到撰写节点

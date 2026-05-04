@@ -31,8 +31,15 @@ def _build_system_prompt() -> str:
 - 直接输出最终文案，不要加任何前缀说明"""
 
 
+def _topic_title(item: str | dict) -> str:
+    """兼容 Tavily 的 list[str]（Phase 1）与 MediaCrawler 的 list[TopicCard]（Phase 2）"""
+    if isinstance(item, dict):
+        return item.get("title", str(item))
+    return str(item)
+
+
 def _build_user_prompt(state: AgentState) -> str:
-    topics = state.get("generated_topics", [])
+    topic_cards = state.get("topic_cards", [])
     user_input = state["user_input"]
     feedback = state.get("human_feedback", "")
 
@@ -47,7 +54,9 @@ def _build_user_prompt(state: AgentState) -> str:
 
 请重写这篇小红书文案，保持品牌调性不变，针对意见做出调整。"""
 
-    topic_list = "\n".join(f"- {t}" for t in topics) if topics else f"- {user_input}相关趋势"
+    topic_list = "\n".join(
+        f"- {_topic_title(c)}" for c in topic_cards
+    ) if topic_cards else f"- {user_input}相关趋势"
 
     return f"""根据以下热点选题，撰写一篇小红书带货文案：
 
