@@ -1,6 +1,5 @@
 """load_assets 节点 —— 加载全部 4 份品牌资产到 state 上下文
 
-对齐 IMPLEMENTATION_PLAN §4.1 节点 3
 从 write_node 中拆出为独立节点，供后续 generate_copy / generate_visuals / finalize 使用
 """
 

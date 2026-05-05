@@ -1,0 +1,17 @@
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code
+.claude/
+.playwright-mcp/
+
+# Project artifacts
+board*.json
+*.png

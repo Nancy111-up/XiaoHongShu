@@ -1,6 +1,5 @@
 """风控校验节点 —— 双层审核机制
 
-对齐 IMPLEMENTATION_PLAN §4.1 节点 6
 
 第一层：config.toml [compliance] 敏感词词典匹配（快速预筛）
 第二层：LLM 二次判定 → pass / mild_warning / severe_violation

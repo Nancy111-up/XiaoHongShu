@@ -1,6 +1,5 @@
 """LangGraph 状态机 — 10 节点完整拓扑
 
-对齐 IMPLEMENTATION_PLAN §4 流程图 + §4.2 条件边表格
 
 拓扑:
     START → init_task → crawl_trends → load_assets → generate_copy

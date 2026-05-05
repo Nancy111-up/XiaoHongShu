@@ -1,7 +1,5 @@
 """human_review 节点 —— LangGraph interrupt 断点，等待人类审核判决
 
-对齐 IMPLEMENTATION_PLAN §4.1 节点 7
-
 行为：
 - 调用 interrupt() 暂停 Graph 执行
 - 向审核面板展示 draft_copy + visual_guidance + compliance_severity

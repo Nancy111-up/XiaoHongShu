@@ -1,6 +1,5 @@
 """crawl_trends 节点 —— MCP 搜索小红书热点趋势，提炼结构化 trends_context
 
-对齐 IMPLEMENTATION_PLAN §4.1 节点 2
 
 行为：
 1. 尝试通过 MCP Client 调用 MediaCrawler search_trends

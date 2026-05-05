@@ -1,4 +1,4 @@
-"""小红书品牌运营 Agent 全局状态 — 对齐 PRD §5 & §6.4"""
+"""小红书品牌运营 Agent 全局状态 """
 
 from __future__ import annotations
 
