@@ -6,6 +6,9 @@
   },
   "enabledMcpjsonServers": [
     "context7",
-    "playwright"
+    "playwright",
+    "memory",
+    "sequential-thinking",
+    "github"
   ]
 }

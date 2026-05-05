@@ -22,11 +22,22 @@ class _Agent(BaseModel):
     max_revision_rounds: int = 5
 
 
+class _DB(BaseModel):
+    url: str = "sqlite+aiosqlite:///./data/xhs_agent.db"
+
+
+class _Compliance(BaseModel):
+    sensitive_words: list[str] = []
+    llm_review_enabled: bool = False
+
+
 class _BusinessConfig(BaseModel):
-    """Pydantic 自动将 TOML dict 嵌套转换为 _LLM / _Agent 实例"""
+    """Pydantic 自动将 TOML dict 嵌套转换为 _LLM / _Agent / _DB / _Compliance 实例"""
     model_config = {"extra": "ignore"}
     llm: _LLM = _LLM()
     agent: _Agent = _Agent()
+    db: _DB = _DB()
+    compliance: _Compliance = _Compliance()
 
 
 # ====== 暗牌：.env 密钥 ======
@@ -35,6 +46,7 @@ class _Secrets(BaseSettings):
     dashscope_api_key: str = ""
     tavily_api_key: str = ""
     langsmith_api_key: str = ""
+    xhs_api_key: str = "dev-api-key-change-me"
     xhs_env: str = "dev"
 
 
@@ -59,6 +71,8 @@ class Settings:
     @property
     def langsmith_api_key(self) -> str: return self.secrets.langsmith_api_key
     @property
+    def xhs_api_key(self) -> str: return self.secrets.xhs_api_key
+    @property
     def search_timeout(self) -> int: return self.business.agent.search_timeout
     @property
     def max_search_results(self) -> int: return self.business.agent.max_search_results
@@ -66,6 +80,12 @@ class Settings:
     def max_revision_rounds(self) -> int: return self.business.agent.max_revision_rounds
     @property
     def is_prod(self) -> bool: return self.secrets.xhs_env == "prod"
+    @property
+    def db_url(self) -> str: return self.business.db.url
+    @property
+    def sensitive_words(self) -> list[str]: return self.business.compliance.sensitive_words
+    @property
+    def llm_review_enabled(self) -> bool: return self.business.compliance.llm_review_enabled
     @property
     def assets_dir(self) -> Path: return Path(__file__).parent / "assets"
 

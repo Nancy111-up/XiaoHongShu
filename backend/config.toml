@@ -13,5 +13,20 @@ max_revision_rounds = 5
 project = "xhs-brand-agent"
 enabled = true
 
+[compliance]
+sensitive_words = [
+    "最",
+    "第一",
+    "国家级",
+    "全网首发",
+    "永久有效",
+    "根治",
+    "立竿见影",
+    "100%",
+    "绝对",
+    "零风险",
+]
+llm_review_enabled = false
+
 [db]
 url = "sqlite+aiosqlite:///./data/xhs_agent.db"

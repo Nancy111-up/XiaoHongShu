@@ -1,4 +1,10 @@
-"""Tavily 热点搜索工具 —— 调用 Tavily Search API 获取小红书选题素材"""
+"""Tavily 热点搜索工具 —— DEPRECATED
+
+⚠️ DEPRECATED: Phase 2 将由 MediaCrawler MCP Server 替代。
+   仅保留给 api/v1/agent/discover 端点临时使用。
+   所有 Agent 内部节点请使用 crawl_trends (MCP)。
+   请勿新增调用方。
+"""
 
 from __future__ import annotations
 

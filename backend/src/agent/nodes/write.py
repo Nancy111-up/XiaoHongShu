@@ -1,16 +1,15 @@
-"""品牌撰写节点 —— 结合选题 + 品牌资产 + 产品信息，调用 LLM 生成小红书文案"""
+"""品牌撰写节点 —— 使用 load_assets 预加载的品牌上下文，调用 LLM 生成小红书文案"""
 
 from __future__ import annotations
 
 from src.agent.state import AgentState
 from src.agent.tools.llm_client import chat_completion
-from src.services.asset_loader import load_asset
 
 
-def _build_system_prompt() -> str:
-    brand = load_asset("brand_voice.md")
-    product = load_asset("product_info.md")
-    negative = load_asset("negative_prompts.md")
+def _build_system_prompt(state: AgentState) -> str:
+    brand = state.get("brand_context", "")
+    product = state.get("product_context", "")
+    negative = state.get("negative_prompts", "")
 
     return f"""你是小红书文案写手，严格遵守以下品牌规范。
 
@@ -70,12 +69,10 @@ def _build_user_prompt(state: AgentState) -> str:
 
 
 async def write_node(state: AgentState) -> dict:
-    brand_context = state.get("brand_context") or load_asset("brand_voice.md")
-    product_context = state.get("product_context") or load_asset("product_info.md")
     is_revision = state.get("is_revision", False)
 
     messages = [
-        {"role": "system", "content": _build_system_prompt()},
+        {"role": "system", "content": _build_system_prompt(state)},
         {"role": "user", "content": _build_user_prompt(state)},
     ]
 
@@ -84,7 +81,5 @@ async def write_node(state: AgentState) -> dict:
 
     return {
         "draft_copy": draft,
-        "brand_context": brand_context,
-        "product_context": product_context,
         "current_step": step,
     }

@@ -25,3 +25,11 @@ def load_all_assets() -> dict[str, str]:
             key = p.stem  # brand_voice, negative_prompts, product_info
             result[key] = p.read_text(encoding="utf-8")
     return result
+
+
+def append_to_asset(filename: str, content: str) -> None:
+    """追加内容到品牌资产文件末尾。用于 extract_rules 写入避坑规则。"""
+    path: Path = settings.assets_dir / filename
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(content)
