@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import tomllib
 from functools import lru_cache
 from pathlib import Path
@@ -31,13 +32,19 @@ class _Compliance(BaseModel):
     llm_review_enabled: bool = False
 
 
+class _LangSmith(BaseModel):
+    project: str = "xhs-brand-agent"
+    enabled: bool = True
+
+
 class _BusinessConfig(BaseModel):
-    """Pydantic 自动将 TOML dict 嵌套转换为 _LLM / _Agent / _DB / _Compliance 实例"""
+    """Pydantic 自动将 TOML dict 嵌套转换为各业务模块实例"""
     model_config = {"extra": "ignore"}
     llm: _LLM = _LLM()
     agent: _Agent = _Agent()
     db: _DB = _DB()
     compliance: _Compliance = _Compliance()
+    langsmith: _LangSmith = _LangSmith()
 
 
 # ====== 暗牌：.env 密钥 ======
@@ -87,6 +94,10 @@ class Settings:
     @property
     def llm_review_enabled(self) -> bool: return self.business.compliance.llm_review_enabled
     @property
+    def langsmith_project(self) -> str: return self.business.langsmith.project
+    @property
+    def langsmith_enabled(self) -> bool: return self.business.langsmith.enabled
+    @property
     def assets_dir(self) -> Path: return Path(__file__).parent / "assets"
 
 
@@ -100,3 +111,34 @@ def _load_toml() -> _BusinessConfig:
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def _setup_langsmith_env() -> None:
+    """在 langgraph 导入之前设置 LangSmith 环境变量。
+
+    LangChain/LangGraph 通过环境变量发现 LangSmith tracing：
+    - LANGCHAIN_TRACING_V2=true  启用 tracing
+    - LANGCHAIN_API_KEY          API Key
+    - LANGCHAIN_PROJECT          项目名
+
+    此函数在模块导入时执行，确保在 graph.py 触发 langgraph import
+    之前环境变量已就位。
+    """
+    secrets = _Secrets()
+    if not secrets.langsmith_api_key:
+        return
+
+    toml_path = Path(__file__).parent.parent / "config.toml"
+    langsmith_enabled = True
+    langsmith_project = "xhs-brand-agent"
+    if toml_path.exists():
+        raw = tomllib.loads(toml_path.read_text(encoding="utf-8"))
+        ls = raw.get("langsmith", {})
+        if not ls.get("enabled", True):
+            return
+        langsmith_project = ls.get("project", langsmith_project)
+
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    os.environ["LANGCHAIN_API_KEY"] = secrets.langsmith_api_key
+    os.environ["LANGCHAIN_PROJECT"] = langsmith_project
+    os.environ.setdefault("LANGCHAIN_ENDPOINT", "https://api.smith.langchain.com")

@@ -5,7 +5,7 @@ max_tokens = 2048
 base_url = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 [agent]
-search_timeout = 30
+search_timeout = 90
 max_search_results = 5
 max_revision_rounds = 5
 
@@ -15,8 +15,17 @@ enabled = true
 
 [compliance]
 sensitive_words = [
-    "最",
-    "第一",
+    "最好",
+    "最佳",
+    "最大",
+    "最小",
+    "最多",
+    "最少",
+    "最强",
+    "最高",
+    "第一款",
+    "排名第一",
+    "销量第一",
     "国家级",
     "全网首发",
     "永久有效",

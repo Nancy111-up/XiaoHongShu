@@ -19,6 +19,7 @@ export const TASK_STATUS_MAP: Record<string, string> = {
   waiting_for_human: "待审核",
   done: "已完成",
   cancelled: "已取消",
+  failed: "失败",
 };
 
 export const POLL_INTERVAL_BOARD = 3000;

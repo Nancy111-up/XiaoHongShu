@@ -15,6 +15,7 @@ import asyncio
 from src.agent.state import AgentState
 from src.agent.tools.llm_client import chat_completion
 from src.agent.tools.mcp_client import MCPServiceError, get_mcp_manager
+from src.config import get_settings
 
 _FALLBACK_TRENDS_CONTEXT = """当前小红书平台趋势（通用降级数据）：
 
@@ -41,6 +42,10 @@ async def crawl_trends_node(state: AgentState) -> dict:
     user_input = state["user_input"]
     manager = get_mcp_manager()
 
+    # Ensure connected (lifespan may not have run if called standalone)
+    if not manager.is_connected:
+        await manager.connect()
+
     try:
         if not manager.is_connected:
             raise MCPServiceError("MCP client not connected")
@@ -49,7 +54,7 @@ async def crawl_trends_node(state: AgentState) -> dict:
             "search_trends",
             query=user_input,
             max_results=5,
-            timeout=30,
+            timeout=get_settings().search_timeout,
         )
 
         # 用 Qwen-Turbo 提炼原始热点数据为结构化 trends_context
@@ -61,7 +66,7 @@ async def crawl_trends_node(state: AgentState) -> dict:
         }
 
     except asyncio.TimeoutError:
-        return _fallback("MCP search_trends 超时 (30s)，使用通用趋势降级")
+        return _fallback(f"MCP search_trends 超时 ({get_settings().search_timeout}s)，使用通用趋势降级")
     except MCPServiceError as e:
         return _fallback(f"MCP 服务不可用: {e}")
     except Exception as e:

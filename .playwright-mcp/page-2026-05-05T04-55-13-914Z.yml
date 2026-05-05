@@ -1,0 +1,140 @@
+- generic [active] [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - heading "L'Atelier Luna" [level=1] [ref=e4]
+      - paragraph [ref=e5]: 品牌内容工作室
+    - navigation [ref=e6]:
+      - button "内容看板" [ref=e7]:
+        - img [ref=e9]
+        - text: 内容看板
+      - button "文案库" [ref=e14]:
+        - img [ref=e16]
+        - text: 文案库
+      - button "素材管理" [ref=e19]:
+        - img [ref=e21]
+        - text: 素材管理
+      - button "发布日历" [ref=e26]:
+        - img [ref=e28]
+        - text: 发布日历
+    - generic [ref=e32]: 引擎在线
+  - generic [ref=e34]:
+    - banner [ref=e35]:
+      - generic [ref=e36]:
+        - heading "内容看板" [level=2] [ref=e37]
+        - paragraph [ref=e38]: 小红书自主品牌运营专家
+      - generic [ref=e40]: 就绪
+    - main [ref=e41]:
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - heading "AI 灵感池" [level=3] [ref=e45]
+            - generic [ref=e46]: "0"
+          - generic [ref=e48]:
+            - button "发现热点" [ref=e49] [cursor=pointer]
+            - paragraph [ref=e50]: 点击"发现热点"探索小红书趋势
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - heading "AI 创作中" [level=3] [ref=e53]
+            - generic [ref=e54]: "8"
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - textbox "输入创作主题..." [ref=e58]
+              - button "开始" [ref=e59] [cursor=pointer]
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e84]:
+              - generic [ref=e85]:
+                - heading "测试话题" [level=4] [ref=e86]
+                - generic [ref=e87]: 创作中
+              - generic [ref=e88]:
+                - generic [ref=e89]: 修订 0 次
+                - generic [ref=e90]: ·
+                - generic [ref=e91]: 2026/5/5
+            - 'button "足球 创作中 { \"title\": 「通勤包太重？3种背法解锁轻盈感」\", \"body\": \"越简单的包，越需要被好好使用～\\n高级感藏在细节的呼吸感里✨\\n\\n---\\n\\n燕麦白手袋单肩背，配西装外套是法式通勤本味🍃\\n斜挎时调松肩带，瞬间切换周末咖啡馆模式☕\\n双肩背？把肩带全拉出，托在手肘处——像捧一本诗集那样轻～\\n\\n---\\n\\n最近上架的L''Atelier Luna通勤手袋，自重仅380g，荔枝纹牛皮软硬刚好，6个分区让口红、耳机、折叠伞各归其位🎀\\n晨露锁骨链搭灰雾蓝包带，是通勤路上最温柔的光🌟\", \"tags\": [\"通勤穿搭\", \"法式风格\", \"小众设计\"], \"ad_placement\": \"最近上架的L''Atelier Luna通勤手袋，自重仅380g，荔枝纹牛皮软硬刚好，6个分区让口红、耳机、折叠伞各归其位🎀\" } 修订 0 次 · 2026/5/5" [ref=e92]':
+              - generic [ref=e93]:
+                - heading "足球" [level=4] [ref=e94]
+                - generic [ref=e95]: 创作中
+              - paragraph [ref=e96]: "{ \"title\": 「通勤包太重？3种背法解锁轻盈感」\", \"body\": \"越简单的包，越需要被好好使用～\\n高级感藏在细节的呼吸感里✨\\n\\n---\\n\\n燕麦白手袋单肩背，配西装外套是法式通勤本味🍃\\n斜挎时调松肩带，瞬间切换周末咖啡馆模式☕\\n双肩背？把肩带全拉出，托在手肘处——像捧一本诗集那样轻～\\n\\n---\\n\\n最近上架的L'Atelier Luna通勤手袋，自重仅380g，荔枝纹牛皮软硬刚好，6个分区让口红、耳机、折叠伞各归其位🎀\\n晨露锁骨链搭灰雾蓝包带，是通勤路上最温柔的光🌟\", \"tags\": [\"通勤穿搭\", \"法式风格\", \"小众设计\"], \"ad_placement\": \"最近上架的L'Atelier Luna通勤手袋，自重仅380g，荔枝纹牛皮软硬刚好，6个分区让口红、耳机、折叠伞各归其位🎀\" }"
+              - generic [ref=e97]:
+                - generic [ref=e98]: 修订 0 次
+                - generic [ref=e99]: ·
+                - generic [ref=e100]: 2026/5/5
+            - 'button "法式通勤穿搭 创作中 { \"title\": 「一只包，三种背法」, \"body\": \"通勤包不该是负担，而该是呼吸感～\\n\\n---\\n燕麦白配米色西装，斜挎；\\n摩卡棕搭风衣，单肩；\\n灰雾蓝系在腰间，秒变腰包✨\\n\\n---\\n最近上架的L''Atelier Luna通勤手袋，自重380g，像没背一样轻🍃\\n内置6个分区，口红、工牌、AirPods各归其位～\\n荔枝纹牛皮软挺有度，越用越有光泽🌟\", \"tags\": [\"#法式通勤穿搭\", \"#小众设计\", \"#质感生活\"], \"ad_placement\": \"最近上架的L''Atelier Luna通勤手袋，自重380g，像没背一样轻🍃\" } 修订 0 次 · 2026/5/5" [ref=e101]':
+              - generic [ref=e102]:
+                - heading "法式通勤穿搭" [level=4] [ref=e103]
+                - generic [ref=e104]: 创作中
+              - paragraph [ref=e105]: "{ \"title\": 「一只包，三种背法」, \"body\": \"通勤包不该是负担，而该是呼吸感～\\n\\n---\\n燕麦白配米色西装，斜挎；\\n摩卡棕搭风衣，单肩；\\n灰雾蓝系在腰间，秒变腰包✨\\n\\n---\\n最近上架的L'Atelier Luna通勤手袋，自重380g，像没背一样轻🍃\\n内置6个分区，口红、工牌、AirPods各归其位～\\n荔枝纹牛皮软挺有度，越用越有光泽🌟\", \"tags\": [\"#法式通勤穿搭\", \"#小众设计\", \"#质感生活\"], \"ad_placement\": \"最近上架的L'Atelier Luna通勤手袋，自重380g，像没背一样轻🍃\" }"
+              - generic [ref=e106]:
+                - generic [ref=e107]: 修订 0 次
+                - generic [ref=e108]: ·
+                - generic [ref=e109]: 2026/5/5
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e110]:
+              - generic [ref=e111]:
+                - heading "测试话题" [level=4] [ref=e112]
+                - generic [ref=e113]: 创作中
+              - generic [ref=e114]:
+                - generic [ref=e115]: 修订 0 次
+                - generic [ref=e116]: ·
+                - generic [ref=e117]: 2026/5/5
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e118]:
+              - generic [ref=e119]:
+                - heading "测试话题" [level=4] [ref=e120]
+                - generic [ref=e121]: 创作中
+              - generic [ref=e122]:
+                - generic [ref=e123]: 修订 0 次
+                - generic [ref=e124]: ·
+                - generic [ref=e125]: 2026/5/5
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e126]:
+              - generic [ref=e127]:
+                - heading "测试话题" [level=4] [ref=e128]
+                - generic [ref=e129]: 创作中
+              - generic [ref=e130]:
+                - generic [ref=e131]: 修订 0 次
+                - generic [ref=e132]: ·
+                - generic [ref=e133]: 2026/5/5
+            - button "夏日配饰 创作中 修订 1 次 · 2026/5/4" [ref=e134]:
+              - generic [ref=e135]:
+                - heading "夏日配饰" [level=4] [ref=e136]
+                - generic [ref=e137]: 创作中
+              - generic [ref=e138]:
+                - generic [ref=e139]: 修订 1 次
+                - generic [ref=e140]: ·
+                - generic [ref=e141]: 2026/5/4
+            - button "法式穿搭 已取消 修订 0 次 · 2026/5/4" [ref=e142]:
+              - generic [ref=e143]:
+                - heading "法式穿搭" [level=4] [ref=e144]
+                - generic [ref=e145]: 已取消
+              - generic [ref=e146]:
+                - generic [ref=e147]: 修订 0 次
+                - generic [ref=e148]: ·
+                - generic [ref=e149]: 2026/5/4
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - heading "待人工审核" [level=3] [ref=e63]
+            - generic [ref=e64]: "1"
+          - 'button "夏日法式通勤穿搭 待审核 { \"title\": 「一只包，三种背法」, \"body\": \"通勤包不该是肩上的负担～\\n轻盈，才是高级感的起点✨\\n---\\n燕麦白配亚麻衬衫，摩卡棕搭西装短裤\\n灰雾蓝系真丝方巾，随手一挽就是法式呼吸感🍃\\n---\\n最近上架的L''Atelier Luna通勤手袋\\n自重380g，像没背一样自在☕\\n6个分区收纳，晨露锁骨链和莫奈花园方巾都稳稳安放🎀\", \"tags\": [\"#法式风格\", \"#通勤穿搭\", \"#小众设计\"], \"ad_placement\": \"最近上架的L''Atelier Luna通勤手袋\" } 修订 0 次 · 2026/5/5" [ref=e174]':
+            - generic [ref=e175]:
+              - heading "夏日法式通勤穿搭" [level=4] [ref=e176]
+              - generic [ref=e177]: 待审核
+            - paragraph [ref=e178]: "{ \"title\": 「一只包，三种背法」, \"body\": \"通勤包不该是肩上的负担～\\n轻盈，才是高级感的起点✨\\n---\\n燕麦白配亚麻衬衫，摩卡棕搭西装短裤\\n灰雾蓝系真丝方巾，随手一挽就是法式呼吸感🍃\\n---\\n最近上架的L'Atelier Luna通勤手袋\\n自重380g，像没背一样自在☕\\n6个分区收纳，晨露锁骨链和莫奈花园方巾都稳稳安放🎀\", \"tags\": [\"#法式风格\", \"#通勤穿搭\", \"#小众设计\"], \"ad_placement\": \"最近上架的L'Atelier Luna通勤手袋\" }"
+            - generic [ref=e179]:
+              - generic [ref=e180]: 修订 0 次
+              - generic [ref=e181]: ·
+              - generic [ref=e182]: 2026/5/5
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - heading "已完成归档" [level=3] [ref=e70]
+            - generic [ref=e71]: "1"
+          - generic [ref=e150]:
+            - button "春季通勤 已完成 完美 修订 0 次 · 2026/5/4" [ref=e151]:
+              - generic [ref=e152]:
+                - heading "春季通勤" [level=4] [ref=e153]
+                - generic [ref=e154]: 已完成
+              - paragraph [ref=e155]: 完美
+              - generic [ref=e156]:
+                - generic [ref=e157]: 修订 0 次
+                - generic [ref=e158]: ·
+                - generic [ref=e159]: 2026/5/4
+            - button "复制文案" [ref=e160] [cursor=pointer]
+      - status [ref=e161]
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]:
+    - img [ref=e81]
+  - alert [ref=e162]

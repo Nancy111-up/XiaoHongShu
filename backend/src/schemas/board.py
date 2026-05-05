@@ -12,12 +12,13 @@ from src.schemas.common import TopicCardSchema, VisualGuidanceSchema
 class TaskCardSchema(BaseModel):
     thread_id: str
     user_input: str
-    status: str  # "in_progress" | "waiting_for_human" | "done" | "cancelled"
+    status: str  # "in_progress" | "waiting_for_human" | "done" | "cancelled" | "failed"
     column: str  # "inspiration" | "in_progress" | "pending_review" | "done"
     revision_count: int = 0
     draft_copy: str | None = None
     final_copy: str | None = None
     visual_guidance: VisualGuidanceSchema | None = None
+    error_logs: list[str] | None = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 

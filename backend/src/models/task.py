@@ -33,6 +33,9 @@ class Task(Base):
     final_copy: Mapped[str | None] = mapped_column(Text, nullable=True)
     feedback_history_json: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # 错误日志（JSON 数组字符串）
+    error_logs: Mapped[str | None] = mapped_column(Text, nullable=True)
+
     # Kanban 列位置
     column: Mapped[str] = mapped_column(
         String(20), default="in_progress"

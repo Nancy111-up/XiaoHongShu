@@ -22,6 +22,7 @@ import json
 from src.agent.state import AgentState
 from src.agent.tools.llm_client import chat_completion
 from src.agent.tools.sensitive_words import check_sensitive
+from src.config import get_settings
 
 
 def _build_compliance_prompt(draft: str, visual: str, hits: list[str]) -> str:
@@ -115,14 +116,17 @@ async def compliance_node(state: AgentState) -> dict:
     if hits:
         error_logs.append(f"Layer1 敏感词命中: {', '.join(hits)}")
 
-    # Layer 2: LLM 二次判定
-    try:
-        severity, reason = await _llm_compliance_review(draft, visual, hits)
-    except Exception as e:
-        # LLM 失败 → 退回 Layer 1 结果
+    # Layer 2: LLM 二次判定（可通过 config.toml 关闭）
+    if get_settings().llm_review_enabled:
+        try:
+            severity, reason = await _llm_compliance_review(draft, visual, hits)
+        except Exception as e:
+            severity = "severe_violation" if hits else "pass"
+            reason = f"LLM 审核不可用，退回 Layer 1 判定: {e}"
+            error_logs.append(f"Layer2 LLM 调用失败: {type(e).__name__}: {e}")
+    else:
         severity = "severe_violation" if hits else "pass"
-        reason = f"LLM 审核不可用，退回 Layer 1 判定: {e}"
-        error_logs.append(f"Layer2 LLM 调用失败: {type(e).__name__}: {e}")
+        reason = "LLM 审核已关闭，依 Layer 1 判定"
 
     if reason and severity != "pass":
         error_logs.append(f"Layer2 判定 [{severity}]: {reason}")

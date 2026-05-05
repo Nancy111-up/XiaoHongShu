@@ -140,6 +140,21 @@ async def cancel_task(db: AsyncSession, thread_id: str) -> Task:
     return task
 
 
+async def mark_task_failed(
+    db: AsyncSession,
+    thread_id: str,
+    *,
+    error_message: str,
+) -> Task:
+    task = await get_task(db, thread_id)
+    task.status = TaskStatus.FAILED
+    task.current_step = "graph_crashed"
+    task.column = "in_progress"
+    task.error_logs = json.dumps([error_message], ensure_ascii=False)
+    await db.flush()
+    return task
+
+
 async def list_tasks_by_column(db: AsyncSession, column: str) -> list[Task]:
     result = await db.execute(
         select(Task)

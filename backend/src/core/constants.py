@@ -10,6 +10,7 @@ class TaskStatus(StrEnum):
     WAITING_FOR_HUMAN = "waiting_for_human"
     DONE = "done"
     CANCELLED = "cancelled"
+    FAILED = "failed"
 
 
 class TaskSource(StrEnum):

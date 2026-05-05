@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 from functools import lru_cache
 from importlib.util import find_spec
+from pathlib import Path
 
 _MCP_ADAPTERS_AVAILABLE = find_spec("langchain_mcp_adapters") is not None
 
@@ -47,8 +48,9 @@ class MCPClientManager:
             config = server_config or {
                 "media_crawler": {
                     "command": "python",
-                    "args": ["-m", "src.skills.media_crawler.server"],
+                    "args": ["-m", "skills.media_crawler.server"],
                     "transport": "stdio",
+                    "cwd": str(Path(__file__).parent.parent.parent.parent),
                 }
             }
             client = MultiServerMCPClient(config)
@@ -68,10 +70,51 @@ class MCPClientManager:
         if tool is None:
             raise MCPServiceError(f"MCP tool '{name}' not found")
 
-        return await asyncio.wait_for(
-            tool(**kwargs),  # type: ignore[misc]
+        raw = await asyncio.wait_for(
+            tool.ainvoke(kwargs),
             timeout=timeout,
         )
+        return _unwrap_mcp_result(raw)
+
+
+def _unwrap_mcp_result(raw: object) -> object:
+    """展开 langchain_mcp_adapters / FastMCP 的 content-block 响应格式。
+
+    FastMCP 返回 [{"type":"text","text":"<json>","id":"..."}],
+    需要提取 text 字段并解析 JSON。如果不是这种格式，原样返回。
+    """
+    import json
+
+    if isinstance(raw, list) and all(
+        isinstance(b, dict) and b.get("type") == "text" for b in raw
+    ):
+        if len(raw) == 1:
+            try:
+                return json.loads(raw[0]["text"])
+            except (json.JSONDecodeError, KeyError):
+                return raw[0].get("text", raw)
+        return [
+            _try_parse(b.get("text", b)) for b in raw
+        ]
+
+    if isinstance(raw, dict) and raw.get("type") == "text":
+        try:
+            return json.loads(raw["text"])
+        except (json.JSONDecodeError, KeyError):
+            return raw.get("text", raw)
+
+    return raw
+
+
+def _try_parse(text: str | object) -> object:
+    import json
+
+    if not isinstance(text, str):
+        return text
+    try:
+        return json.loads(text)
+    except (json.JSONDecodeError, TypeError):
+        return text
 
 
 @lru_cache

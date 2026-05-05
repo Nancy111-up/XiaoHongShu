@@ -1,0 +1,162 @@
+- generic [ref=e1]:
+  - complementary [ref=e2]:
+    - generic [ref=e3]:
+      - heading "L'Atelier Luna" [level=1] [ref=e4]
+      - paragraph [ref=e5]: 品牌内容工作室
+    - navigation [ref=e6]:
+      - button "内容看板" [ref=e7]:
+        - img [ref=e9]
+        - text: 内容看板
+      - button "文案库" [ref=e14]:
+        - img [ref=e16]
+        - text: 文案库
+      - button "素材管理" [ref=e19]:
+        - img [ref=e21]
+        - text: 素材管理
+      - button "发布日历" [ref=e26]:
+        - img [ref=e28]
+        - text: 发布日历
+    - generic [ref=e32]: 引擎在线
+  - generic [ref=e34]:
+    - banner [ref=e35]:
+      - generic [ref=e36]:
+        - heading "内容看板" [level=2] [ref=e37]
+        - paragraph [ref=e38]: 小红书自主品牌运营专家
+      - generic [ref=e40]: 就绪
+    - main [ref=e41]:
+      - generic [ref=e42]:
+        - generic [ref=e43]:
+          - generic [ref=e44]:
+            - heading "AI 灵感池" [level=3] [ref=e45]
+            - generic [ref=e46]: "0"
+          - generic [ref=e48]:
+            - button "发现热点" [ref=e49] [cursor=pointer]
+            - paragraph [ref=e50]: 点击"发现热点"探索小红书趋势
+        - generic [ref=e51]:
+          - generic [ref=e52]:
+            - heading "AI 创作中" [level=3] [ref=e53]
+            - generic [ref=e54]: "8"
+          - generic [ref=e56]:
+            - generic [ref=e57]:
+              - textbox "输入创作主题..." [ref=e58]
+              - button "开始" [ref=e59] [cursor=pointer]
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e84]:
+              - generic [ref=e85]:
+                - heading "测试话题" [level=4] [ref=e86]
+                - generic [ref=e87]: 创作中
+              - generic [ref=e88]:
+                - generic [ref=e89]: 修订 0 次
+                - generic [ref=e90]: ·
+                - generic [ref=e91]: 2026/5/5
+            - button "足球 创作中 **通勤包太重？3种背法解锁轻盈感** 越简单的包，越需要被好好使用～ 高级感藏在细节的呼吸感里✨ --- 燕麦白手袋单肩背，配西装外套是法式通勤本味🍃 斜挎时调松肩带，瞬间切换周末咖啡馆模式☕ 双肩背？把肩带全拉出，托在手肘处——像捧一本诗集那样轻～ --- 最近上架的L'Atelier Luna通勤手袋，自重仅380g，荔枝纹牛皮软硬刚好，6个分区让口红、耳机、折叠伞各归其位🎀 晨露锁骨链搭灰雾蓝包带，是通勤路上最温柔的光🌟 通勤穿搭 法式风格 小众设计 修订 0 次 · 2026/5/5" [ref=e92]:
+              - generic [ref=e93]:
+                - heading "足球" [level=4] [ref=e94]
+                - generic [ref=e95]: 创作中
+              - paragraph [ref=e96]: "**通勤包太重？3种背法解锁轻盈感** 越简单的包，越需要被好好使用～ 高级感藏在细节的呼吸感里✨ --- 燕麦白手袋单肩背，配西装外套是法式通勤本味🍃 斜挎时调松肩带，瞬间切换周末咖啡馆模式☕ 双肩背？把肩带全拉出，托在手肘处——像捧一本诗集那样轻～ --- 最近上架的L'Atelier Luna通勤手袋，自重仅380g，荔枝纹牛皮软硬刚好，6个分区让口红、耳机、折叠伞各归其位🎀 晨露锁骨链搭灰雾蓝包带，是通勤路上最温柔的光🌟 通勤穿搭 法式风格 小众设计"
+              - generic [ref=e97]:
+                - generic [ref=e98]: 修订 0 次
+                - generic [ref=e99]: ·
+                - generic [ref=e100]: 2026/5/5
+            - 'button "法式通勤穿搭 创作中 **一只包，三种背法** 通勤包不该是负担，而该是呼吸感～ --- 燕麦白配米色西装，斜挎； 摩卡棕搭风衣，单肩； 灰雾蓝系在腰间，秒变腰包✨ --- 最近上架的L''Atelier Luna通勤手袋，自重380g，像没背一样轻🍃 内置6个分区，口红、工牌、AirPods各归其位～ 荔枝纹牛皮软挺有度，越用越有光泽🌟 #法式通勤穿搭 #小众设计 #质感生活 修订 0 次 · 2026/5/5" [ref=e101]':
+              - generic [ref=e102]:
+                - heading "法式通勤穿搭" [level=4] [ref=e103]
+                - generic [ref=e104]: 创作中
+              - paragraph [ref=e105]: "**一只包，三种背法** 通勤包不该是负担，而该是呼吸感～ --- 燕麦白配米色西装，斜挎； 摩卡棕搭风衣，单肩； 灰雾蓝系在腰间，秒变腰包✨ --- 最近上架的L'Atelier Luna通勤手袋，自重380g，像没背一样轻🍃 内置6个分区，口红、工牌、AirPods各归其位～ 荔枝纹牛皮软挺有度，越用越有光泽🌟 #法式通勤穿搭 #小众设计 #质感生活"
+              - generic [ref=e106]:
+                - generic [ref=e107]: 修订 0 次
+                - generic [ref=e108]: ·
+                - generic [ref=e109]: 2026/5/5
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e110]:
+              - generic [ref=e111]:
+                - heading "测试话题" [level=4] [ref=e112]
+                - generic [ref=e113]: 创作中
+              - generic [ref=e114]:
+                - generic [ref=e115]: 修订 0 次
+                - generic [ref=e116]: ·
+                - generic [ref=e117]: 2026/5/5
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e118]:
+              - generic [ref=e119]:
+                - heading "测试话题" [level=4] [ref=e120]
+                - generic [ref=e121]: 创作中
+              - generic [ref=e122]:
+                - generic [ref=e123]: 修订 0 次
+                - generic [ref=e124]: ·
+                - generic [ref=e125]: 2026/5/5
+            - button "测试话题 创作中 修订 0 次 · 2026/5/5" [ref=e126]:
+              - generic [ref=e127]:
+                - heading "测试话题" [level=4] [ref=e128]
+                - generic [ref=e129]: 创作中
+              - generic [ref=e130]:
+                - generic [ref=e131]: 修订 0 次
+                - generic [ref=e132]: ·
+                - generic [ref=e133]: 2026/5/5
+            - button "夏日配饰 创作中 修订 1 次 · 2026/5/4" [ref=e134]:
+              - generic [ref=e135]:
+                - heading "夏日配饰" [level=4] [ref=e136]
+                - generic [ref=e137]: 创作中
+              - generic [ref=e138]:
+                - generic [ref=e139]: 修订 1 次
+                - generic [ref=e140]: ·
+                - generic [ref=e141]: 2026/5/4
+            - button "法式穿搭 已取消 修订 0 次 · 2026/5/4" [ref=e142]:
+              - generic [ref=e143]:
+                - heading "法式穿搭" [level=4] [ref=e144]
+                - generic [ref=e145]: 已取消
+              - generic [ref=e146]:
+                - generic [ref=e147]: 修订 0 次
+                - generic [ref=e148]: ·
+                - generic [ref=e149]: 2026/5/4
+        - generic [ref=e61]:
+          - generic [ref=e62]:
+            - heading "待人工审核" [level=3] [ref=e63]
+            - generic [ref=e64]: "1"
+          - 'button "夏日法式通勤穿搭 待审核 **通勤包太重？这只不到一杯奶茶重** 高级感，从卸下肩上的重量开始～ 轻，不是妥协，是更精准的材质选择✨ --- 荔枝纹牛皮柔韧有型，却比手机还轻 燕麦白配亚麻衬衫，摩卡棕衬焦糖西装 灰雾蓝系莫奈花园方巾，晨露锁骨链垂落锁骨间🌸 --- 最近上架的L''Atelier Luna通勤手袋 自重380g｜6个分区｜意大利进口牛皮 通勤、约会、周末出街，一只包全帧在线🕯️ #通勤穿搭 #法式风格 #独立设计师 #质感生活 修订 1 次 · 2026/5/5" [active] [ref=e150]':
+            - generic [ref=e151]:
+              - heading "夏日法式通勤穿搭" [level=4] [ref=e152]
+              - generic [ref=e153]: 待审核
+            - paragraph [ref=e154]: "**通勤包太重？这只不到一杯奶茶重** 高级感，从卸下肩上的重量开始～ 轻，不是妥协，是更精准的材质选择✨ --- 荔枝纹牛皮柔韧有型，却比手机还轻 燕麦白配亚麻衬衫，摩卡棕衬焦糖西装 灰雾蓝系莫奈花园方巾，晨露锁骨链垂落锁骨间🌸 --- 最近上架的L'Atelier Luna通勤手袋 自重380g｜6个分区｜意大利进口牛皮 通勤、约会、周末出街，一只包全帧在线🕯️ #通勤穿搭 #法式风格 #独立设计师 #质感生活"
+            - generic [ref=e155]:
+              - generic [ref=e156]: 修订 1 次
+              - generic [ref=e157]: ·
+              - generic [ref=e158]: 2026/5/5
+        - generic [ref=e68]:
+          - generic [ref=e69]:
+            - heading "已完成归档" [level=3] [ref=e70]
+            - generic [ref=e71]: "1"
+          - generic [ref=e159]:
+            - button "春季通勤 已完成 完美 修订 0 次 · 2026/5/4" [ref=e160]:
+              - generic [ref=e161]:
+                - heading "春季通勤" [level=4] [ref=e162]
+                - generic [ref=e163]: 已完成
+              - paragraph [ref=e164]: 完美
+              - generic [ref=e165]:
+                - generic [ref=e166]: 修订 0 次
+                - generic [ref=e167]: ·
+                - generic [ref=e168]: 2026/5/4
+            - button "复制文案" [ref=e169] [cursor=pointer]
+      - status [ref=e170]
+  - generic [ref=e173]:
+    - generic [ref=e174]:
+      - generic [ref=e175]:
+        - heading "审核文案" [level=2] [ref=e176]
+        - paragraph [ref=e177]: 夏日法式通勤穿搭
+      - button "✕" [ref=e178]
+    - generic [ref=e179]:
+      - button "微调通过" [ref=e180]
+      - button "重做" [ref=e181]
+    - generic [ref=e183]:
+      - generic [ref=e184]:
+        - generic [ref=e185]: 编辑文案
+        - textbox [ref=e186]: "**通勤包太重？这只不到一杯奶茶重** 高级感，从卸下肩上的重量开始～ 轻，不是妥协，是更精准的材质选择✨ --- 荔枝纹牛皮柔韧有型，却比手机还轻 燕麦白配亚麻衬衫，摩卡棕衬焦糖西装 灰雾蓝系莫奈花园方巾，晨露锁骨链垂落锁骨间🌸 --- 最近上架的L'Atelier Luna通勤手袋 自重380g｜6个分区｜意大利进口牛皮 通勤、约会、周末出街，一只包全帧在线🕯️ #通勤穿搭 #法式风格 #独立设计师 #质感生活"
+      - generic [ref=e187]:
+        - heading "视觉建议" [level=4] [ref=e188]
+        - paragraph [ref=e189]: 法式简约风格封面，暖调燕麦底色，产品居中摆放，柔和侧光营造高级质感
+        - list [ref=e190]:
+          - listitem [ref=e191]: 中景：产品置于大理石板，自然光从左侧打来，背景虚化呈现咖啡厅氛围
+          - listitem [ref=e192]: 特写：手持产品细节，皮质纹理清晰可见，配合柔和景深
+          - listitem [ref=e193]: 全景：都市女性通勤场景，产品自然融入日常穿搭，捕捉动态瞬间
+          - listitem [ref=e194]: 平铺：产品与同色系配饰（丝巾、墨镜）组合摆放，俯拍构图
+      - button "保存并通过" [ref=e195] [cursor=pointer]
+  - button "Open Next.js Dev Tools" [ref=e80] [cursor=pointer]:
+    - img [ref=e81]
+  - alert [ref=e171]

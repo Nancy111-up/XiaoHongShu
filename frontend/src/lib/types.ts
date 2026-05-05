@@ -21,6 +21,7 @@ export interface TaskData {
   draft_copy: string | null;
   final_copy: string | null;
   visual_guidance: VisualGuidance | null;
+  error_logs?: string[];
   created_at: string;
   updated_at: string;
 }

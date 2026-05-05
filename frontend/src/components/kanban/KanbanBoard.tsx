@@ -31,6 +31,7 @@ export function KanbanBoard() {
   const addToast = useKanbanStore((s) => s.addToast);
 
   const [newTopic, setNewTopic] = useState("");
+  const [discoverKeyword, setDiscoverKeyword] = useState("");
   const [inspirationCards, setInspirationCards] = useState<TopicCardData[]>([]);
   const [activeDrag, setActiveDrag] = useState<TopicCardData | null>(null);
 
@@ -47,9 +48,9 @@ export function KanbanBoard() {
 
   const allInspiration = [...inspirationCards, ...board.inspiration];
 
-  const handleDiscover = async () => {
+  const handleDiscover = async (keyword?: string) => {
     try {
-      const result = await discover.mutateAsync(undefined);
+      const result = await discover.mutateAsync(keyword || undefined);
       if (result) {
         // Replace entirely — each discover call is a fresh trend snapshot
         const seen = new Set<string>();
@@ -140,6 +141,8 @@ export function KanbanBoard() {
               {colId === "inspiration" && (
                 <InspirationContent
                   cards={allInspiration}
+                  keyword={discoverKeyword}
+                  onKeywordChange={setDiscoverKeyword}
                   onDiscover={handleDiscover}
                   discovering={discover.isPending}
                 />
@@ -188,28 +191,51 @@ export function KanbanBoard() {
 
 function InspirationContent({
   cards,
+  keyword,
+  onKeywordChange,
   onDiscover,
   discovering,
 }: {
   cards: TopicCardData[];
-  onDiscover: () => void;
+  keyword: string;
+  onKeywordChange: (v: string) => void;
+  onDiscover: (keyword?: string) => void;
   discovering: boolean;
 }) {
   return (
     <div className="space-y-2">
+      {/* 手动输入关键词搜索 */}
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          onDiscover(keyword);
+        }}
+        className="flex gap-2"
+      >
+        <Input
+          placeholder="输入话题，发现类似热点..."
+          value={keyword}
+          onChange={(e) => onKeywordChange(e.target.value)}
+        />
+        <Button type="submit" size="sm" disabled={discovering}>
+          {discovering ? "..." : "搜索"}
+        </Button>
+      </form>
+
+      {/* AI 自动推荐 */}
       <Button
         variant="secondary"
         size="sm"
         className="w-full"
-        onClick={onDiscover}
+        onClick={() => onDiscover()}
         disabled={discovering}
       >
-        {discovering ? "搜索中..." : "发现热点"}
+        {discovering ? "搜索中..." : "AI 推荐热点"}
       </Button>
 
       {cards.length === 0 && !discovering && (
         <p className="text-xs text-stone-400 text-center py-6">
-          点击"发现热点"探索小红书趋势
+          输入话题搜索或让 AI 推荐热门趋势
         </p>
       )}
 

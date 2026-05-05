@@ -14,6 +14,7 @@ export function TaskCard({ task, onClick, isSelected }: TaskCardProps) {
   const statusLabel = TASK_STATUS_MAP[task.status] || task.status;
   const isPending = task.column === "pending_review";
   const isDone = task.column === "done";
+  const isFailed = task.status === "failed";
 
   return (
     <button
@@ -21,7 +22,9 @@ export function TaskCard({ task, onClick, isSelected }: TaskCardProps) {
       className={`w-full text-left rounded-xl border px-4 py-3 transition-all hover:shadow-md ${
         isSelected
           ? "border-stone-400 ring-2 ring-stone-200 bg-white"
-          : "border-stone-200 bg-white hover:border-stone-300"
+          : isFailed
+            ? "border-red-200 bg-red-50/50 hover:border-red-300"
+            : "border-stone-200 bg-white hover:border-stone-300"
       }`}
     >
       <div className="flex items-center justify-between">
@@ -30,14 +33,20 @@ export function TaskCard({ task, onClick, isSelected }: TaskCardProps) {
         </h4>
         <Badge
           variant={
-            isDone ? "success" : isPending ? "warning" : "default"
+            isFailed ? "error" : isDone ? "success" : isPending ? "warning" : "default"
           }
         >
           {statusLabel}
         </Badge>
       </div>
 
-      {isDone ? (
+      {isFailed ? (
+        task.error_logs && task.error_logs.length > 0 && (
+          <p className="mt-2 text-xs text-red-600 line-clamp-3">
+            {task.error_logs[0]}
+          </p>
+        )
+      ) : isDone ? (
         task.final_copy ? (
           <p className="mt-2 text-xs text-stone-600 line-clamp-3 whitespace-pre-wrap">
             {task.final_copy}

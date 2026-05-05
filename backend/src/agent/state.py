@@ -82,11 +82,12 @@ def create_initial_state(
     user_input: str,
     *,
     topic_cards: list[TopicCard] | None = None,
+    thread_id: str | None = None,
 ) -> AgentState:
     """创建初始 AgentState，填充所有必需默认值"""
     initial: AgentState = {
         "user_input": user_input,
-        "thread_id": str(uuid4()),
+        "thread_id": thread_id or str(uuid4()),
         "topic_cards": topic_cards or [],
         "draft_copy": "",
         "visual_guidance": VisualGuidance(
