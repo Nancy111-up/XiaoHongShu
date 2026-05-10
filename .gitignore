@@ -11,6 +11,7 @@ Thumbs.db
 # Claude Code
 .claude/
 .playwright-mcp/
+.pytest_cache/
 
 # Project artifacts
 board*.json
