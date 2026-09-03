@@ -21,6 +21,7 @@ def _job(root: Path, name: str, keyword: str, mode: str, notes: list[dict]) -> N
                 "finished_at": "2026-09-03T00:01:00+00:00",
                 "exit_code": 0,
                 "raw_path": str(path),
+                "note_ids": [note.get("note_id") for note in notes] if mode == "detail" else None,
             }
         ),
         encoding="utf-8",

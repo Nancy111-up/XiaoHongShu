@@ -4,6 +4,7 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlparse
 
 import yaml
 
@@ -76,9 +77,19 @@ class MediaCrawlerSettings:
             return result.stdout.strip()
 
         origin = git("remote", "get-url", "origin")
-        if origin.rstrip("/") != self.repository_url.removesuffix(".git").rstrip("/"):
+        if _canonical_origin(origin) != _canonical_origin(self.repository_url):
             raise RuntimeError(f"checkout origin mismatch: {origin}")
         if git("rev-parse", "HEAD") != self.commit:
             raise RuntimeError("checkout HEAD does not match pinned commit")
         if git("status", "--porcelain"):
             raise RuntimeError("checkout working tree is dirty")
+
+
+def _canonical_origin(value: str) -> str:
+    value = value.strip().rstrip("/")
+    if value.startswith("git@"):
+        host, _, path = value.partition(":")
+        value = f"https://{host.removeprefix('git@')}/{path}"
+    parsed = urlparse(value if "://" in value else f"https://{value}")
+    path = parsed.path.rstrip("/").removesuffix(".git")
+    return f"{parsed.hostname.lower()}{path}".rstrip("/")

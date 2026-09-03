@@ -60,6 +60,10 @@ def validate(root: Path) -> int:
         if manifest.get("raw_path") != str(path):
             print(f"INVALID: mixed raw_path in {path.name}")
             return 3
+        expected_mode = "search" if path in search_jobs else "detail"
+        if manifest.get("mode") != expected_mode:
+            print(f"INVALID: {expected_mode.title()} manifest mode in {path.name}")
+            return 3
     keywords = {manifest.get("keyword") for manifest in manifests[:3]}
     if keywords != set(KEYWORDS):
         print(f"INVALID: keyword coverage is {sorted(keywords)}")
@@ -85,6 +89,15 @@ def validate(root: Path) -> int:
     if len(note_ids) != 3:
         print(f"INVALID: Detail must contain exactly 3 representative notes, found {len(note_ids)}")
         return 3
+    representatives = manifests[-1].get("note_ids")
+    if (
+        not isinstance(representatives, list)
+        or len(representatives) != 3
+        or len(set(representatives)) != 3
+        or set(representatives) != note_ids
+    ):
+        print("INVALID: Detail manifest note IDs must exactly match 3 distinct records")
+        return 3
     if any(
         not isinstance(row.get("note_url"), str) or not row["note_url"].startswith("https://")
         for row in detail_rows
@@ -103,6 +116,36 @@ def validate(root: Path) -> int:
     return 0
 
 
+def _validate_search_jobs(root: Path) -> int:
+    jobs = sorted(p for p in root.iterdir() if p.is_dir() and p.name.startswith("search-"))
+    if len(jobs) != 3:
+        print("INVALID: resume requires exactly three Search jobs")
+        return 3
+    seen: set[str] = set()
+    for path in jobs:
+        manifest_path = path / "manifest.json"
+        if not manifest_path.exists():
+            return 3
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        keyword = manifest.get("keyword")
+        if manifest.get("mode") != "search" or keyword not in KEYWORDS or keyword in seen:
+            return 3
+        seen.add(keyword)
+        if manifest.get("exit_code") != 0 or manifest.get("raw_path") != str(path):
+            return 3
+        rows = _records(path)
+        if not rows or any(
+            "comments" in row or "comment_id" in row or "content" in row for row in rows
+        ):
+            return 3
+        if any(
+            not isinstance(row.get("note_url"), str) or not row["note_url"].startswith("https://")
+            for row in rows
+        ):
+            return 3
+    return 0
+
+
 async def run_live(root: Path, note_ids: list[str]) -> int:
     settings = MediaCrawlerSettings.from_yaml(Path("../config/mediacrawler.yaml"))
     adapter = MediaCrawlerAdapter(settings)
@@ -112,7 +155,22 @@ async def run_live(root: Path, note_ids: list[str]) -> int:
         print(f"NEEDS_CONTEXT: {exc}")
         return 2
     root.mkdir(parents=True, exist_ok=True)
-    for keyword in KEYWORDS:
+    existing = [p for p in root.iterdir() if p.is_dir() and p.name.startswith("search-")]
+    if existing:
+        if not note_ids:
+            print(
+                "NEEDS_DETAIL_SELECTION: select exactly three note IDs, then resume with "
+                "--detail-note ID1 --detail-note ID2 --detail-note ID3"
+            )
+            return 2
+        if len(note_ids) != 3 or len(set(note_ids)) != 3 or _validate_search_jobs(root) != 0:
+            print("REFUSED: existing Search jobs are not a valid current run")
+            return 3
+    else:
+        if note_ids:
+            print("REFUSED: Detail IDs supplied without a successful Search run")
+            return 3
+    for keyword in () if existing else KEYWORDS:
         path = root / f"search-{KEYWORDS.index(keyword) + 1}-{keyword}"
         if path.exists():
             print(f"REFUSED: job directory already exists: {path}")
@@ -135,8 +193,8 @@ async def run_live(root: Path, note_ids: list[str]) -> int:
             summary = execution.stderr_summary or "no stderr"
             print(f"NEEDS_CONTEXT: Search failed for {keyword}: {summary}")
             return execution.exit_code or 1
-    if len(note_ids) != 3:
-        print("NEEDS_CONTEXT: provide exactly three representative note IDs with --detail-note")
+    if len(note_ids) != 3 or len(set(note_ids)) != 3:
+        print("NEEDS_DETAIL_SELECTION: select exactly three distinct representative note IDs")
         return 2
     detail_path = root / "detail-1"
     if detail_path.exists():
