@@ -157,6 +157,40 @@ All checks passed!
 Real P0 remains unexecuted for the network/login reasons above; no live data was fabricated.
 Fix-round code/document changes are included in commit `200f0aa`.
 
+## Fix round 3 TDD audit
+
+Before reimplementing the previously unverified behaviors, I disabled validation,
+checkout verification/canonicalization, and stderr redaction. The required focused command
+was run and reached the intended missing-behavior failures:
+
+```text
+$ cd backend; uv run pytest tests/unit/crawler/test_adapter.py tests/unit/crawler/test_p0_probe.py -q
+... 3 failed, 4 passed in 0.32s
+FAILED test_run_captures_exit_metadata_and_redacts_cookie_values
+  AssertionError: 'top-secret' is contained in stderr_summary
+FAILED test_validator_requires_three_keyword_searches_and_one_three_note_detail
+  NotImplementedError: P0 validation pending TDD
+FAILED test_validator_rejects_empty_search_and_detail_with_more_than_twenty_comments
+  NotImplementedError: P0 validation pending TDD
+```
+
+The failures were expected: each was caused by intentionally disabled production behavior,
+not a test typo. Restoring the implementation and adding manifest mode/ID checks yielded:
+
+```text
+$ cd backend; uv run pytest -q
+........                                                                 [100%]
+8 passed in 0.74s
+$ uv run ruff check src/crawler tests/unit/crawler scripts/p0_mediacrawler_probe.py
+All checks passed!
+$ uv run python -c "...; s.verify_checkout(); print('checkout verified')"
+checkout verified
+```
+
+The local external checkout now verifies against the official origin, pinned HEAD, and a
+clean tracked tree. Real crawling remains unclaimed pending user-mediated login and live
+field evidence.
+
 ## Fix round 2
 
 Focused tests were extended for exact three distinct representative IDs, Detail manifest

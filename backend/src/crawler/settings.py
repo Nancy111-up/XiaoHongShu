@@ -91,5 +91,10 @@ def _canonical_origin(value: str) -> str:
         host, _, path = value.partition(":")
         value = f"https://{host.removeprefix('git@')}/{path}"
     parsed = urlparse(value if "://" in value else f"https://{value}")
+    if parsed.scheme != "https" or not parsed.hostname:
+        raise RuntimeError("checkout origin must use official HTTPS or SSH transport")
     path = parsed.path.rstrip("/").removesuffix(".git")
-    return f"{parsed.hostname.lower()}{path}".rstrip("/")
+    canonical = f"{parsed.hostname.lower()}{path}".rstrip("/")
+    if canonical != "github.com/NanmiCoder/MediaCrawler":
+        raise RuntimeError(f"checkout origin is not the official repository: {value}")
+    return canonical
