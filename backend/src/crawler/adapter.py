@@ -9,7 +9,7 @@ from pathlib import Path
 from src.crawler.settings import MediaCrawlerSettings
 
 _SENSITIVE_LINE_VALUE = re.compile(
-    r"(?i)(\b(?:set-cookie|cookies?|authorization|xsec_token)\b\s*[:=]\s*)([^\r\n]+)"
+    r"(?i)([\"']?\b(?:set-cookie|cookies?|authorization|xsec_token)[\"']?\s*[:=]\s*[\"']?)([^\"'\r\n,;}]+)"
 )
 _STDERR_SUMMARY_LIMIT = 4_000
 

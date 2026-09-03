@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -54,3 +55,30 @@ class MediaCrawlerSettings:
             detail_max_comments_per_note=int(crawl["detail_max_comments_per_note"]),
             headless=bool(crawl["headless"]),
         )
+
+    def verify_checkout(self) -> None:
+        if not self.checkout_path.is_dir():
+            raise RuntimeError(f"MediaCrawler checkout missing: {self.checkout_path}")
+
+        def git(*args: str) -> str:
+            try:
+                result = subprocess.run(
+                    ["git", *args],
+                    cwd=self.checkout_path,
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as exc:
+                raise RuntimeError(
+                    f"checkout git verification failed: {exc.stderr.strip()}"
+                ) from exc
+            return result.stdout.strip()
+
+        origin = git("remote", "get-url", "origin")
+        if origin.rstrip("/") != self.repository_url.removesuffix(".git").rstrip("/"):
+            raise RuntimeError(f"checkout origin mismatch: {origin}")
+        if git("rev-parse", "HEAD") != self.commit:
+            raise RuntimeError("checkout HEAD does not match pinned commit")
+        if git("status", "--porcelain"):
+            raise RuntimeError("checkout working tree is dirty")
