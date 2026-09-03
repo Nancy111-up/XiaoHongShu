@@ -12,6 +12,7 @@ Thumbs.db
 .claude/
 .playwright-mcp/
 .pytest_cache/
+.worktrees/
 
 # Project artifacts
 board*.json
