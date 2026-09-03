@@ -1,0 +1,22 @@
+repository:
+  url: https://github.com/NanmiCoder/MediaCrawler.git
+  commit: d6f7c5bb906b6dac40ddf343ef9e26438a3de092
+
+checkout:
+  path: external/MediaCrawler
+
+runner:
+  executable: uv
+  args:
+    - run
+    - --frozen
+    - main.py
+
+crawl:
+  platform: xhs
+  login_type: qrcode
+  save_data_option: jsonl
+  max_concurrency: 1
+  search_max_notes: 40
+  detail_max_comments_per_note: 20
+  headless: false

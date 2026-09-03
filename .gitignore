@@ -17,3 +17,7 @@ Thumbs.db
 # Project artifacts
 board*.json
 *.png
+.cache/
+data/raw/
+data/cookies/
+external/MediaCrawler/
