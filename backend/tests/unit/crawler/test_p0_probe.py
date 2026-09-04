@@ -435,6 +435,60 @@ async def test_live_probe_marks_cancelled_search_run_interrupted(
     assert run["finished_at"]
 
 
+@pytest.mark.asyncio
+async def test_live_probe_marks_cancelled_detail_run_interrupted_and_unresumable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class CancelledDetailAdapter(_FakeAdapter):
+        async def run_detail(self, note_ids: list[str], raw_path: Path) -> CrawlExecution:
+            raw_path.mkdir(parents=True, exist_ok=True)
+            (raw_path / "partial.jsonl").write_text("partial", encoding="utf-8")
+            raise asyncio.CancelledError
+
+    root = tmp_path / "raw"
+    _live_dependencies(monkeypatch, tmp_path)
+    assert await probe.run_live(root, [], None) == 2
+    run_id = json.loads((root / "run.json").read_text(encoding="utf-8"))["run_id"]
+    monkeypatch.setattr(probe, "MediaCrawlerAdapter", CancelledDetailAdapter)
+
+    with pytest.raises(asyncio.CancelledError):
+        await probe.run_live(root, ["n1", "n2", "n3"], run_id)
+
+    run = json.loads((root / "run.json").read_text(encoding="utf-8"))
+    assert run["status"] == "interrupted"
+    assert run["finished_at"]
+    assert (root / "detail-1" / "partial.jsonl").exists()
+    assert not (root / "detail-1" / "manifest.json").exists()
+    assert await probe.run_live(root, ["n1", "n2", "n3"], run_id) == 3
+
+
+@pytest.mark.asyncio
+async def test_live_probe_marks_detail_exception_failed_and_unresumable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class FailingDetailAdapter(_FakeAdapter):
+        async def run_detail(self, note_ids: list[str], raw_path: Path) -> CrawlExecution:
+            raw_path.mkdir(parents=True, exist_ok=True)
+            (raw_path / "partial.jsonl").write_text("partial", encoding="utf-8")
+            raise RuntimeError("detail crashed")
+
+    root = tmp_path / "raw"
+    _live_dependencies(monkeypatch, tmp_path)
+    assert await probe.run_live(root, [], None) == 2
+    run_id = json.loads((root / "run.json").read_text(encoding="utf-8"))["run_id"]
+    monkeypatch.setattr(probe, "MediaCrawlerAdapter", FailingDetailAdapter)
+
+    with pytest.raises(RuntimeError, match="detail crashed"):
+        await probe.run_live(root, ["n1", "n2", "n3"], run_id)
+
+    run = json.loads((root / "run.json").read_text(encoding="utf-8"))
+    assert run["status"] == "failed"
+    assert run["finished_at"]
+    assert (root / "detail-1" / "partial.jsonl").exists()
+    assert not (root / "detail-1" / "manifest.json").exists()
+    assert await probe.run_live(root, ["n1", "n2", "n3"], run_id) == 3
+
+
 def test_cli_passes_explicit_run_id_for_detail_resume(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

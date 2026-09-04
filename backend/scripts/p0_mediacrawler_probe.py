@@ -378,12 +378,19 @@ async def run_live(root: Path, note_ids: list[str], run_id: str | None = None) -
         return 3
 
     detail_path = root / "detail-1"
-    execution = await adapter.run_detail(representatives, detail_path)
+    persisted_run = {key: value for key, value in run.items() if not key.startswith("_")}
+    try:
+        execution = await adapter.run_detail(representatives, detail_path)
+    except (asyncio.CancelledError, KeyboardInterrupt):
+        _finish_run(root, persisted_run, "interrupted")
+        raise
+    except Exception:
+        _finish_run(root, persisted_run, "failed")
+        raise
     _write_manifest(
         detail_path / "manifest.json",
         _execution_manifest(execution, run_id, "detail", note_ids=representatives),
     )
-    persisted_run = {key: value for key, value in run.items() if not key.startswith("_")}
     if execution.exit_code != 0:
         _finish_run(root, persisted_run, "failed", execution.finished_at)
         print(f"NEEDS_CONTEXT: Detail failed: {_safe_summary(execution)}")

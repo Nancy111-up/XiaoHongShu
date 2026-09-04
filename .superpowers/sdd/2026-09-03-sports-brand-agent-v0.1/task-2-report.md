@@ -395,3 +395,81 @@ resume invocation revalidates those jobs without rerunning them and creates one 
 Checkout verification canonicalizes official HTTPS/SSH forms while rejecting wrong
 repository, HEAD, dirty tree, and missing checkout. No real P0 was attempted because the
 verified checkout and authenticated login remain unavailable; no data was fabricated.
+
+## Fix round 5 — Detail cancellation and exception safety
+
+### Root cause and RED evidence
+
+Search execution already caught `asyncio.CancelledError` and `KeyboardInterrupt`, atomically
+persisted top-level status `interrupted` with `finished_at`, and re-raised. Detail execution
+had no equivalent exception boundary: cancellation or an ordinary exception after the
+adapter created `detail-1` left the top-level run reusable-looking as `awaiting_detail`.
+
+Two focused tests first constructed otherwise-valid, run-bound Search artifacts, then used
+Detail adapters that created a partial Detail file before raising. Both tests reached the
+intended missing-behavior failures:
+
+```text
+$ cd backend
+$ $env:UV_CACHE_DIR='../data/raw/.uv-cache-task2'; uv run pytest --basetemp=../data/raw/.pytest-task2-detail-cancel-red tests/unit/crawler/test_p0_probe.py::test_live_probe_marks_cancelled_detail_run_interrupted_and_unresumable tests/unit/crawler/test_p0_probe.py::test_live_probe_marks_detail_exception_failed_and_unresumable -q
+FF                                                                       [100%]
+================================== FAILURES ===================================
+___ test_live_probe_marks_cancelled_detail_run_interrupted_and_unresumable ____
+>       assert run["status"] == "interrupted"
+E       AssertionError: assert 'awaiting_detail' == 'interrupted'
+________ test_live_probe_marks_detail_exception_failed_and_unresumable ________
+>       assert run["status"] == "failed"
+E       AssertionError: assert 'awaiting_detail' == 'failed'
+=========================== short test summary info ===========================
+FAILED tests/unit/crawler/test_p0_probe.py::test_live_probe_marks_cancelled_detail_run_interrupted_and_unresumable
+FAILED tests/unit/crawler/test_p0_probe.py::test_live_probe_marks_detail_exception_failed_and_unresumable
+2 failed in 0.30s
+```
+
+An earlier invocation without the task-local `UV_CACHE_DIR` failed before pytest collection
+because the host `uv` cache was inaccessible; it was not counted as RED.
+
+### Minimal fix and GREEN evidence
+
+Detail execution now has a narrow exception boundary matching the established Search
+cancellation semantics. Cancellation or keyboard interruption atomically finishes the
+top-level run as `interrupted`; an ordinary Detail exception atomically finishes it as
+`failed`; each original exception is then re-raised. Partial Detail files are retained as
+invalid diagnostic evidence, receive no successful job manifest, and cannot be resumed
+because the top-level run is no longer `awaiting_detail`. Search behavior was unchanged.
+
+Focused GREEN:
+
+```text
+$ cd backend
+$ $env:UV_CACHE_DIR='../data/raw/.uv-cache-task2'; uv run pytest --basetemp=../data/raw/.pytest-task2-detail-cancel-green tests/unit/crawler/test_p0_probe.py::test_live_probe_marks_cancelled_detail_run_interrupted_and_unresumable tests/unit/crawler/test_p0_probe.py::test_live_probe_marks_detail_exception_failed_and_unresumable -q
+..                                                                       [100%]
+2 passed in 0.33s
+```
+
+All crawler/probe tests:
+
+```text
+$ $env:UV_CACHE_DIR='../data/raw/.uv-cache-task2'; uv run pytest --basetemp=../data/raw/.pytest-task2-detail-all-crawler tests/unit/crawler/test_adapter.py tests/unit/crawler/test_p0_probe.py -q
+........................................................................ [ 98%]
+.                                                                        [100%]
+73 passed in 10.15s
+```
+
+Ruff:
+
+```text
+$ $env:UV_CACHE_DIR='../data/raw/.uv-cache-task2'; uv run ruff check src/crawler tests/unit/crawler scripts/p0_mediacrawler_probe.py
+All checks passed!
+```
+
+Full backend suite:
+
+```text
+$ $env:UV_CACHE_DIR='../data/raw/.uv-cache-task2'; uv run pytest --basetemp=../data/raw/.pytest-task2-detail-full -q
+........................................................................ [ 97%]
+..                                                                       [100%]
+74 passed in 10.00s
+```
+
+No live P0 command was started in this fix round.
