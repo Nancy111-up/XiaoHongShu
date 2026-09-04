@@ -157,6 +157,180 @@ All checks passed!
 Real P0 remains unexecuted for the network/login reasons above; no live data was fabricated.
 Fix-round code/document changes are included in commit `200f0aa`.
 
+## Fix round 4 — run binding and strict artifact audit
+
+### Root cause and design decision
+
+The previous implementation treated any three `search-*` directories as resumable state.
+There was no top-level run identity, no expiry, and no temporal envelope tying child jobs
+to one invocation. Validation also reduced Detail records to a set of IDs, so a fourth
+duplicate record could pass, and the broad comment-limit test failed earlier on empty
+Search output instead of exercising its stated boundary. Checkout canonicalization had
+also become HTTPS-only and rejected the official `ssh://` form.
+
+Fix round 4 replaces that implicit-directory architecture with one persisted `run.json`.
+It uses a 256-bit random `run_id`, records `started_at`, `finished_at`, and `status`, and
+requires every Search and Detail manifest to carry the same ID and a valid time range.
+Search ends in `awaiting_detail`; Detail resume requires the explicit `--run-id`, must
+occur within 24 hours, and rejects missing, wrong, foreign/mixed, temporally inconsistent,
+completed, or already-detailed runs. A new run requires an empty artifact directory, so
+historical directories cannot be adopted.
+
+### Genuine RED evidence
+
+Before implementation, fix-round-4 validation, checkout verification, and redaction were
+deliberately disabled. The prior eight broad cases were replaced/expanded with precise
+behavior tests. The first invocation was not counted because the machine's default pytest
+temporary directory was inaccessible. Re-running with a workspace-local base directory
+reached the intended behavior failures:
+
+```text
+$ cd backend
+$ uv run pytest --basetemp=.pytest-tmp-round4 \
+    tests/unit/crawler/test_adapter.py tests/unit/crawler/test_p0_probe.py -q
+.....FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF. [100%]
+48 failed, 6 passed in 7.04s
+```
+
+The 48 failures were caused by the deliberately absent production behavior, not fixture
+or collection errors: six redaction forms raised the disabled redactor; checkout cases
+raised the disabled verifier; strict artifact/manifest/comment cases raised the disabled
+validator; and run-binding/resume cases raised the disabled two-stage runner. The tests
+now independently cover 20 versus 21 first-level comments with otherwise-valid Search and
+Detail artifacts, any sub-comment, invalid representative IDs, a duplicate fourth Detail
+record, each manifest field mutation, live resume identity/state, probe-output secrecy,
+and real temporary Git repositories.
+
+### GREEN and verification evidence
+
+```text
+$ uv run pytest --basetemp=.pytest-tmp-round4 \
+    tests/unit/crawler/test_adapter.py tests/unit/crawler/test_p0_probe.py -q
+...................................................... [100%]
+54 passed in 7.55s
+
+$ uv run ruff check src/crawler tests/unit/crawler scripts/p0_mediacrawler_probe.py
+All checks passed!
+
+$ uv run pytest --basetemp=.pytest-tmp-round4-full -q
+....................................................... [100%]
+55 passed in 8.33s
+```
+
+Configured-checkout verification through `MediaCrawlerSettings.verify_checkout()` also
+passed for official origin, pinned commit
+`d6f7c5bb906b6dac40ddf343ef9e26438a3de092`, and clean tracked state. Verification uses
+an invocation-local exact `safe.directory` because the sandbox-created checkout and host
+process have different Windows owners; it does not mutate global Git configuration.
+
+### Files changed
+
+- `backend/scripts/p0_mediacrawler_probe.py`
+- `backend/src/crawler/settings.py`
+- `backend/tests/unit/crawler/test_adapter.py`
+- `backend/tests/unit/crawler/test_p0_probe.py`
+- this cumulative report
+
+`adapter.py` was deliberately disabled for RED and restored without a lasting diff after
+the expanded redaction suite proved the existing expression covers Python dict, JSON,
+Bearer Authorization, set-cookie, mixed-case, and multiline forms.
+
+### Real P0 status and concern
+
+The exact first Search command was started after checkout verification:
+
+```text
+cd backend
+uv run python scripts/p0_mediacrawler_probe.py ../data/raw/p0-20260903
+```
+
+It persisted run ID
+`ae04eb906fb20587859c0862fdc14f88ae978e76083e04ae525070207bc7b9f6` with status
+`searching` and created the `search-1-校园足球` directory, then remained in the normal
+interactive browser-login/verification flow without producing a Search manifest. Status
+is therefore `NEEDS_CONTEXT`, not P0 completion. The user must scan the Xiaohongshu QR
+code in the opened MediaCrawler browser and complete any CAPTCHA normally. No bypass was
+attempted and no real records or field conclusions were fabricated; `published_at`
+remains blocked until the live crawl completes.
+
+### Continuation audit and corrections
+
+The inherited round-4 changes were reviewed without resetting them. Additional comparison
+against the pinned MediaCrawler JSONL writer exposed one important mismatch: real Detail
+output stores note `contents` and `comments` in separate JSONL files. The inherited
+validator counted every row as a note, so a valid three-note run containing comments would
+be rejected before the 20-comment boundary was evaluated. The validator now classifies
+note and comment records, requires exactly three note records whose IDs match the three
+manifest IDs, counts separate or embedded first-level comments per representative note,
+and rejects a real sub-comment via non-empty `parent_comment_id` (as well as the synthetic
+`is_sub_comment` marker used by older fixtures).
+
+Further audit found and fixed three defense gaps: an untracked checkout file was not
+considered dirty, compound Cookie values could leak text after a semicolon, and the probe
+trusted an adapter's `stderr_summary` to be pre-redacted before printing it. A cancelled
+Search now atomically marks the top-level run `interrupted` with a finish time instead of
+leaving reusable-looking `searching` state.
+
+New precise tests were written and observed failing before each implementation change.
+The first RED run produced five intended failures (63 passed): compound Python-dict/JSON
+Cookie tails leaked, an untracked checkout was accepted, raw probe stderr was printed, and
+a cancelled run remained `searching`. After those fixes, three real-shape comment tests
+were run separately and all failed for the intended old row-classification behavior:
+
+```text
+$ uv run pytest --basetemp=../data/raw/.pytest-task2-realshape-red \
+    tests/unit/crawler/test_p0_probe.py::test_validator_counts_real_separate_comment_records_per_note \
+    tests/unit/crawler/test_p0_probe.py::test_validator_rejects_real_sub_comment_record_by_parent_id -q
+FFF                                                                      [100%]
+3 failed in 0.56s
+```
+
+Fresh GREEN verification after the corrections:
+
+```text
+$ uv run pytest --basetemp=../data/raw/.pytest-task2-realshape-green \
+    tests/unit/crawler/test_adapter.py tests/unit/crawler/test_p0_probe.py -q
+.......................................................................  [100%]
+71 passed in 10.74s
+
+$ uv run ruff check src/crawler tests/unit/crawler scripts/p0_mediacrawler_probe.py
+All checks passed!
+
+$ uv run pytest --basetemp=../data/raw/.pytest-task2-full -q
+........................................................................ [100%]
+72 passed in 10.30s
+```
+
+The configured pinned checkout also passed origin, exact HEAD, and clean-tree
+verification. The two inaccessible `backend/.pytest-tmp-round4*` directories inherited
+from the prior sandbox were removed with verified worktree-local targets. All new pytest
+base directories were placed under ignored `data/raw/` to avoid repeating the ownership
+problem.
+
+The contaminated historical run
+`ae04eb906fb20587859c0862fdc14f88ae978e76083e04ae525070207bc7b9f6` is retained under
+`data/raw/p0-20260903` but explicitly marked `interrupted`; it is invalid and is not used
+as resume input. A fresh live Search was then started in
+`data/raw/p0-20260904-run-2` with run ID
+`33995236755eb0c8aa45de6ad2a12b7978f18d8ef7cf982b58a65caf46deb8c0`.
+That run safely ended as `failed` because Playwright reported its pinned Chromium
+executable was not installed. The required Playwright Chromium runtime was installed;
+the failed directory was retained and was not reused.
+
+A third fresh Search is active in `data/raw/p0-20260904-run-3`, bound to run ID
+`cbbcc604fecee16effea3f970ed9c3e7979065605979ff4c06fad1ea7e6cb95b`, using:
+
+```text
+cd backend
+uv run python scripts/p0_mediacrawler_probe.py ../data/raw/p0-20260904-run-3
+```
+
+It is currently in the normal interactive browser login/verification flow, with status
+`searching` and no Search manifest yet. This is `NEEDS_CONTEXT`: use the already-opened
+MediaCrawler browser to scan the Xiaohongshu QR code and complete any CAPTCHA normally.
+Do not launch a second copy of the command while this process is active. No bypass was
+attempted and P0 is not claimed complete; `published_at` remains blocked.
+
 ## Fix round 3 TDD audit
 
 Before reimplementing the previously unverified behaviors, I disabled validation,

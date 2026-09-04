@@ -8,8 +8,13 @@ from pathlib import Path
 
 from src.crawler.settings import MediaCrawlerSettings
 
-_SENSITIVE_LINE_VALUE = re.compile(
-    r"(?i)([\"']?\b(?:set-cookie|cookies?|authorization|xsec_token)[\"']?\s*[:=]\s*[\"']?)([^\"'\r\n,;}]+)"
+_SENSITIVE_QUOTED_VALUE = re.compile(
+    r"(?i)([\"']?\b(?:set-cookie|cookies?|authorization|xsec_token)[\"']?\s*[:=]\s*)"
+    r"([\"'])(?:\\.|(?!\2).)*\2"
+)
+_SENSITIVE_UNQUOTED_VALUE = re.compile(
+    r"(?i)([\"']?\b(?:set-cookie|cookies?|authorization|xsec_token)[\"']?\s*[:=]\s*)"
+    r"(?![\"'])([^\r\n,}]+)"
 )
 _STDERR_SUMMARY_LIMIT = 4_000
 
@@ -117,5 +122,12 @@ def _summarize_stderr(stderr: bytes) -> str | None:
     decoded = stderr.decode("utf-8", errors="replace").strip()
     if not decoded:
         return None
-    redacted = _SENSITIVE_LINE_VALUE.sub(r"\1[REDACTED]", decoded)
+    redacted = redact_sensitive_text(decoded)
     return redacted[-_STDERR_SUMMARY_LIMIT:]
+
+
+def redact_sensitive_text(value: str) -> str:
+    """Redact secret-bearing fields from a diagnostic string."""
+
+    redacted = _SENSITIVE_QUOTED_VALUE.sub(r"\1\2[REDACTED]\2", value)
+    return _SENSITIVE_UNQUOTED_VALUE.sub(r"\1[REDACTED]", redacted)

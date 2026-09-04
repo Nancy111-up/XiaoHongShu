@@ -64,7 +64,12 @@ class MediaCrawlerSettings:
         def git(*args: str) -> str:
             try:
                 result = subprocess.run(
-                    ["git", *args],
+                    [
+                        "git",
+                        "-c",
+                        f"safe.directory={self.checkout_path.resolve()}",
+                        *args,
+                    ],
                     cwd=self.checkout_path,
                     check=True,
                     capture_output=True,
@@ -87,14 +92,26 @@ class MediaCrawlerSettings:
 
 def _canonical_origin(value: str) -> str:
     value = value.strip().rstrip("/")
-    if value.startswith("git@"):
-        host, _, path = value.partition(":")
-        value = f"https://{host.removeprefix('git@')}/{path}"
-    parsed = urlparse(value if "://" in value else f"https://{value}")
-    if parsed.scheme != "https" or not parsed.hostname:
-        raise RuntimeError("checkout origin must use official HTTPS or SSH transport")
-    path = parsed.path.rstrip("/").removesuffix(".git")
-    canonical = f"{parsed.hostname.lower()}{path}".rstrip("/")
+    if value.startswith("git@") and ":" in value:
+        user_host, path = value.split(":", 1)
+        user, host = user_host.split("@", 1)
+        if user != "git":
+            raise RuntimeError(f"checkout origin has invalid SSH user: {value}")
+    else:
+        parsed = urlparse(value)
+        if parsed.scheme not in {"https", "ssh"} or not parsed.hostname:
+            raise RuntimeError("checkout origin must use official HTTPS or SSH transport")
+        if parsed.query or parsed.fragment:
+            raise RuntimeError(f"checkout origin has unexpected components: {value}")
+        if parsed.scheme == "ssh" and parsed.username != "git":
+            raise RuntimeError(f"checkout origin has invalid SSH user: {value}")
+        if parsed.scheme == "https" and (parsed.username or parsed.password):
+            raise RuntimeError(f"checkout origin must not contain credentials: {value}")
+        host = parsed.hostname
+        path = parsed.path.lstrip("/")
+
+    canonical_path = path.rstrip("/").removesuffix(".git")
+    canonical = f"{host.lower()}/{canonical_path}"
     if canonical != "github.com/NanmiCoder/MediaCrawler":
         raise RuntimeError(f"checkout origin is not the official repository: {value}")
     return canonical
