@@ -1,92 +1,92 @@
-# MediaCrawler P0 field report (2026-09-04)
+# MediaCrawler P0 field report (2026-09-06)
 
 Repository: https://github.com/NanmiCoder/MediaCrawler.git  
 Pinned revision: `d6f7c5bb906b6dac40ddf343ef9e26438a3de092`  
-Status: **Search live-verified; Detail and comment fields blocked.** Run
-`cbbcc604fecee16effea3f970ed9c3e7979065605979ff4c06fad1ea7e6cb95b`
-(`data/raw/p0-20260904-run-3`) completed three serial Search jobs with exit code 0 and
-`--get_comment false --get_sub_comment false`: `校园足球` = 40 JSONL rows,
-`足球装备` = 40, and `大学生体育` = 40. Search yielded no comment records. The 120 real
-records contain one cross-keyword duplicate note ID. No mapping below is inferred from a
-fixture or demo record.
+Status: **PASS. Search, Detail, first-level comments, and mandatory field mappings are live-verified.**
+
+The validated run is `de3400f00fe4cb2e7ed4bb964dcfd79f6125d7a6a54244bdc2546d34bb333794`
+under ignored raw path `data/raw/p0-20260906-run-7`. It contains three serial Search
+jobs with comments disabled (`校园足球`, `足球装备`, `大学生体育`, 40 records each),
+followed by one Detail job for exactly three distinct representative notes from distinct
+authors. Detail produced three note records and 60 first-level comment records, exactly 20
+per representative note, with no sub-comments.
+
+No real note ID, author identifier/name, title, body, comment text, token-bearing URL,
+Cookie, or token is committed. The checked-in fixtures are structurally derived and fully
+anonymized.
 
 ## Field verification
 
-`Nullable` reports only the observed 120-record Search sample, not a general API contract.
-`UNVERIFIED` requires completed live Detail JSONL.
+`Nullable` describes this 2026-09-06 live sample. Raw engagement fields remain strings
+because compact Chinese units and empty strings occur. Normalization must preserve missing
+values rather than silently turning them into zero.
 
-| Contract field | Exact raw key | Example type | Nullable | Decision |
+| Contract field | Exact raw key | Observed type | Nullable / empty | Mapping decision |
 |---|---|---|---|---|
-| `note_id` | `note_id` | string | no empty/null | retain as source note identifier |
-| `title` | `title` | string | no empty/null | map directly |
-| `body` | `desc` | string | 3 empty strings; no null | map directly; preserve empty string |
-| `author_id` | `creator_hash` | string | no empty/null | map directly; platform pseudonymous identifier |
-| `author_name` | `nickname` | string | no empty/null | map directly; anonymize in any committed fixture |
-| `published_at` | `time` | integer (milliseconds-like) | no empty/null | **BLOCKED_FIELD: published_at** — epoch/unit/semantic stability across Detail and runs is unverified |
-| `likes` | `liked_count` | string | no empty/null | retain raw string; compact Chinese units occur, so no numeric coercion is evidenced |
-| `collects` | `collected_count` | string | no empty/null | retain raw string; no numeric coercion is evidenced |
-| `comments` | `comment_count` | string | 4 empty strings; no null | Search engagement count only; preserve raw string/empty shape |
-| `url` | `note_url` | string | no empty/null | map directly for live validation; token-bearing query must not enter fixtures/report examples |
-| `comment_id` | UNVERIFIED | UNVERIFIED | UNVERIFIED | UNVERIFIED |
-| `comment_content` | UNVERIFIED | UNVERIFIED | UNVERIFIED | UNVERIFIED |
+| `note_id` | `note_id` | string | 0/120 Search and 0/3 Detail empty/null | map directly as source identifier |
+| `title` | `title` | string | 0/120 Search and 0/3 Detail empty/null | map directly |
+| `body` | `desc` | string | 3/120 Search empty; 0 null | map directly and preserve empty string |
+| `author_id` | `creator_hash` | string | no empty/null in Search or Detail | map directly; anonymize in fixtures |
+| `author_name` | `nickname` | string | no empty/null in Search or Detail | map directly; anonymize in fixtures |
+| `published_at` | `time` | integer (`Int64`) | no empty/null | interpret as Unix epoch milliseconds; all Detail values are 13 digits, convert to plausible non-future 2025–2026 UTC instants, and match the corresponding Search value for 3/3 representatives |
+| `likes` | `liked_count` | string | no empty/null in this sample | retain raw string; parse compact units only in a separate normalizer |
+| `collects` | `collected_count` | string | no empty/null in this sample | retain raw string; parse compact units only in a separate normalizer |
+| `comments` | `comment_count` | string | 6/120 Search empty; 0 null | engagement count only, not comment content; retain raw value |
+| `url` | `note_url` | string | no empty/null | map canonical note URL; strip `xsec_token` and other query parameters before persistence outside the ignored raw boundary |
+| `comment_id` | `comment_id` | string | 0/60 empty/null | map directly as source comment identifier |
+| `comment_content` | `content` | string | 2/60 empty; 0 null | map directly and preserve empty string |
 
-Search engagement `comment_count`, if present in a real note record, is a count and is not
-comment content. The validator permits it while rejecting comment record files or embedded
-comment records in Search output. Detail must contain only first-level comments, at most 20
-per note, for exactly three representative notes.
+Live comment records also expose `note_id`, `create_time`, `creator_hash`, `nickname`,
+`sub_comment_count`, `pictures`, `parent_comment_id`, `last_modify_ts`, and `like_count`.
+All 60 observed `parent_comment_id` values are empty, confirming first-level-only output.
 
-## Blockers and safety
+## Root-cause findings
 
-Three distinct, relevant and relatively high-engagement representative notes were selected
-from the real Search output, one per keyword. Their real IDs remain only in ignored raw
-manifests/commands; completed fixtures/report would use aliases. The same run's Detail
-attempt was started with first-level-only comments and the 20-comment limit, but failed
-before crawl output: the configured runner inherited an invalid checkout virtual
-environment whose interpreter path no longer existed, then could not read uv's managed
-Python directory. The run was correctly marked `failed` and is not reused.
+Two distinct causes explained the earlier failed Detail attempt:
 
-An isolated ignored Python 3.11 environment was built from the pinned lockfile. A new run
-`ecc7db9e318c507ba8d6cbf37a3eb082e8ec1dd80d760e47a5470b06aae50c82` then exited without
-a Search manifest or diagnostic output; it is explicitly marked `interrupted` and is not
-evidence. Strict validation cannot pass and no Detail/comment fixtures are created: doing
-so would fabricate evidence. Formal seven-day implementation remains blocked at
-`BLOCKED_FIELD: published_at` until real Detail output verifies timestamp semantics and
-stability. QR/CAPTCHA was not bypassed; cookies remain outside Git, business DB, frontend,
-and ordinary logs.
+1. The restricted development subprocess could not read the user-scoped Python 3.11 and
+   uv managed-runtime directories. The pinned environment itself is valid when executed
+   with normal local permissions; a no-network interpreter probe resolved to the checkout
+   `.venv` and Python 3.11.1.
+2. The official Xiaohongshu Detail implementation needs `note_id`, `xsec_token`, and
+   `xsec_source`. Although the generic CLI help permits a bare ID, its XHS implementation
+   obtains the latter two values by parsing the supplied URL. The adapter now accepts the
+   selected IDs at the project boundary, resolves each ID back to its tokenized Search URL,
+   passes that URL only to the official subprocess, and persists only the IDs in manifests.
 
-## Execution and verification record
+The second cause is covered by a regression test that failed before the implementation
+change and passed afterward. Tokenized URLs stay in ignored raw files and subprocess
+arguments only; they are not printed, committed, or copied into fixtures.
 
-Actual Search invocation (from `backend`):
+## Verification record
+
+Strict live validation:
 
 ```text
-uv run python scripts/p0_mediacrawler_probe.py ../data/raw/p0-20260904-run-3
+uv run python scripts/p0_mediacrawler_probe.py --validate-only ../data/raw/p0-20260906-run-7
+P0 artifacts validated: one bound run, 3 Search jobs, and 1 Detail job
+VALIDATOR_EXIT=0
 ```
 
-The three selected IDs were passed to the Detail resume with the run ID above. To avoid
-putting live note identifiers in a committed artifact, they are recorded here as
-`CAMPUS_FOOTBALL_NOTE_A`, `FOOTBALL_GEAR_NOTE_B`, and `UNIVERSITY_SPORT_NOTE_C`.
-They are distinct authors and originate respectively from `校园足球`, `足球装备`, and
-`大学生体育`. Detail manifest exit code was 2; produced note records = 0 and produced
-first-level comment records = 0. Thus the required maximum of 20 comments per note was
-requested but not live-observed.
-
-Strict validation was actually run:
+Fresh implementation verification after the Detail fix:
 
 ```text
-python scripts/p0_mediacrawler_probe.py --validate-only ../data/raw/p0-20260904-run-3
-INVALID: top-level run status must be completed
-```
+uv run pytest --basetemp=../data/raw/.pytest-p0-final -q
+75 passed in 10.76s
 
-This is the expected honest result for a failed Detail job, not a passing claim. Fresh
-verification of the unchanged crawler/probe code was:
-
-```text
-python -m pytest --basetemp=../data/raw/.pytest-task2-live-crawler tests/unit/crawler/test_adapter.py tests/unit/crawler/test_p0_probe.py -q
-73 passed in 9.35s
-
-ruff check src/crawler tests/unit/crawler scripts/p0_mediacrawler_probe.py
+uv run ruff check src tests scripts
 All checks passed!
 
-python -m pytest --basetemp=../data/raw/.pytest-task2-live-full -q
-74 passed in 9.14s
+npm test -- --run
+1 test passed
+
+npm run lint
+exit 0
+
+npm run build
+Compiled successfully; static route `/` generated
 ```
+
+The earlier failed/interrupted raw directories are retained as ignored diagnostic evidence
+and are never reused. QR/CAPTCHA was not bypassed. Cookies remain outside Git, the business
+database, frontend payloads, fixtures, and ordinary logs.
