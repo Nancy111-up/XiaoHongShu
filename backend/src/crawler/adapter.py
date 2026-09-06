@@ -57,6 +57,8 @@ class MediaCrawlerAdapter:
             raise ValueError("detail crawl requires at least one note")
         if len(set(normalized_ids)) != len(normalized_ids):
             raise ValueError("detail crawl note IDs must be unique")
+        if any("," in note_id for note_id in normalized_ids):
+            raise ValueError("detail crawl targets must not contain a comma")
         return [
             *self._base_command(raw_path),
             "--type",
@@ -108,6 +110,7 @@ class MediaCrawlerAdapter:
             stderr=asyncio.subprocess.PIPE,
         )
         _, stderr = await process.communicate()
+        assert process.returncode is not None
         finished_at = datetime.now(UTC)
         return CrawlExecution(
             started_at=started_at,

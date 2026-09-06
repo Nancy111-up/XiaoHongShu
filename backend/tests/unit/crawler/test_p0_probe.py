@@ -378,6 +378,56 @@ async def test_live_probe_resolves_selected_ids_to_tokenized_search_urls_for_det
 
 
 @pytest.mark.asyncio
+async def test_live_probe_rejects_a_comma_inside_a_tokenized_search_url(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "raw"
+    _live_dependencies(monkeypatch, tmp_path)
+    assert await probe.run_live(root, [], None) == 2
+    run_id = json.loads((root / "run.json").read_text(encoding="utf-8"))["run_id"]
+    record_path = next(root.glob("search-1-*")) / "notes.jsonl"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["note_url"] = (
+        f"https://www.xiaohongshu.com/explore/{record['note_id']}"
+        "?xsec_token=token,foreign-id&xsec_source=pc_search"
+    )
+    record_path.write_text(json.dumps(record), encoding="utf-8")
+
+    assert await probe.run_live(root, ["n1", "n2", "n3"], run_id) == 3
+    assert not (root / "detail-1").exists()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "url_template",
+    [
+        "https://www.xiaohongshu.com/user/profile/{id}"
+        "?xsec_token=token&xsec_source=pc_search",
+        "https://www.xiaohongshu.com/explore/{id}"
+        "?xsec_token=first&xsec_token=second&xsec_source=pc_search",
+        "https://www.xiaohongshu.com/explore/{id}"
+        "?xsec_token=token&xsec_source=pc_feed",
+        "https://viewer@www.xiaohongshu.com/explore/{id}"
+        "?xsec_token=token&xsec_source=pc_search",
+    ],
+)
+async def test_live_probe_rejects_noncanonical_xhs_detail_urls(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, url_template: str
+) -> None:
+    root = tmp_path / "raw"
+    _live_dependencies(monkeypatch, tmp_path)
+    assert await probe.run_live(root, [], None) == 2
+    run_id = json.loads((root / "run.json").read_text(encoding="utf-8"))["run_id"]
+    record_path = next(root.glob("search-1-*")) / "notes.jsonl"
+    record = json.loads(record_path.read_text(encoding="utf-8"))
+    record["note_url"] = url_template.format(id=record["note_id"])
+    record_path.write_text(json.dumps(record), encoding="utf-8")
+
+    assert await probe.run_live(root, ["n1", "n2", "n3"], run_id) == 3
+    assert not (root / "detail-1").exists()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("run_id", [None, "wrong-run"])
 async def test_live_probe_rejects_absent_or_wrong_resume_run_id(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, run_id: str | None

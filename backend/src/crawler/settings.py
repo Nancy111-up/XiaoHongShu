@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-import yaml
+import yaml  # type: ignore[import-untyped]
 
 OFFICIAL_REPOSITORY_URL = "https://github.com/NanmiCoder/MediaCrawler.git"
 PINNED_COMMIT = "d6f7c5bb906b6dac40ddf343ef9e26438a3de092"

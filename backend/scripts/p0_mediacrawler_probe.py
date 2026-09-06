@@ -99,10 +99,14 @@ def _detail_targets(root: Path, representatives: list[str]) -> list[str] | None:
             query = parse_qs(parsed.query)
             if (
                 parsed.scheme == "https"
-                and parsed.hostname == "www.xiaohongshu.com"
-                and parsed.path.rstrip("/").endswith(f"/{note_id}")
-                and query.get("xsec_token", [""])[0]
-                and query.get("xsec_source", [""])[0]
+                and parsed.netloc == "www.xiaohongshu.com"
+                and "," not in note_url
+                and parsed.path == f"/explore/{note_id}"
+                and not parsed.fragment
+                and set(query) == {"xsec_token", "xsec_source"}
+                and len(query["xsec_token"]) == 1
+                and bool(query["xsec_token"][0])
+                and query["xsec_source"] == ["pc_search"]
             ):
                 matches.setdefault(str(note_id), note_url)
     if set(matches) != selected:

@@ -47,6 +47,19 @@ def test_detail_command_rejects_empty_note_ids(
         MediaCrawlerAdapter(settings).build_detail_command(note_ids, Path("detail"))
 
 
+def test_detail_command_rejects_comma_inside_a_detail_target(
+    settings: MediaCrawlerSettings,
+) -> None:
+    with pytest.raises(ValueError, match="comma"):
+        MediaCrawlerAdapter(settings).build_detail_command(
+            [
+                "https://www.xiaohongshu.com/explore/n1"
+                "?xsec_token=token,foreign-id&xsec_source=pc_search"
+            ],
+            Path("detail"),
+        )
+
+
 @pytest.mark.parametrize(
     ("stderr", "secrets"),
     [
