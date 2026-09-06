@@ -4,6 +4,7 @@ import asyncio
 import json
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
 
@@ -22,7 +23,10 @@ def _write_json(path: Path, value: object) -> None:
 def _note(note_id: str, comments: list[dict[str, object]] | None = None) -> dict[str, object]:
     note: dict[str, object] = {
         "note_id": note_id,
-        "note_url": f"https://www.xiaohongshu.com/explore/{note_id}",
+        "note_url": (
+            f"https://www.xiaohongshu.com/explore/{note_id}"
+            "?xsec_token=test-token&xsec_source=pc_search"
+        ),
     }
     note["comments" if comments is not None else "comment_count"] = (
         comments if comments is not None else 4
@@ -288,14 +292,16 @@ class _FakeAdapter:
     async def run_search(self, keyword: str, raw_path: Path) -> CrawlExecution:
         raw_path.mkdir(parents=True, exist_ok=True)
         (raw_path / "notes.jsonl").write_text(
-            json.dumps(_note(f"s-{KEYWORDS.index(keyword)}")), encoding="utf-8"
+            json.dumps(_note(f"n{KEYWORDS.index(keyword) + 1}")), encoding="utf-8"
         )
         return _execution(raw_path)
 
     async def run_detail(self, note_ids: list[str], raw_path: Path) -> CrawlExecution:
         raw_path.mkdir(parents=True, exist_ok=True)
+        resolved_ids = [urlparse(note_url).path.rstrip("/").split("/")[-1] for note_url in note_ids]
         (raw_path / "notes.jsonl").write_text(
-            "\n".join(json.dumps(_note(note_id, [])) for note_id in note_ids), encoding="utf-8"
+            "\n".join(json.dumps(_note(note_id, [])) for note_id in resolved_ids),
+            encoding="utf-8",
         )
         return _execution(raw_path)
 
@@ -331,6 +337,44 @@ async def test_live_probe_binds_search_and_detail_to_same_unpredictable_run(
         == run_id
     )
     assert probe.validate(root) == 0
+
+
+@pytest.mark.asyncio
+async def test_live_probe_resolves_selected_ids_to_tokenized_search_urls_for_detail(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class CapturingAdapter(_FakeAdapter):
+        detail_targets: list[str] = []
+
+        async def run_detail(
+            self, note_ids: list[str], raw_path: Path
+        ) -> CrawlExecution:
+            type(self).detail_targets = note_ids
+            raw_path.mkdir(parents=True, exist_ok=True)
+            return _execution(raw_path, exit_code=7)
+
+    root = tmp_path / "raw"
+    _live_dependencies(monkeypatch, tmp_path)
+    monkeypatch.setattr(probe, "MediaCrawlerAdapter", CapturingAdapter)
+    assert await probe.run_live(root, [], None) == 2
+    run_id = json.loads((root / "run.json").read_text(encoding="utf-8"))["run_id"]
+    selected_ids: list[str] = []
+    expected_urls: list[str] = []
+    for index, search_path in enumerate(sorted(root.glob("search-*")), 1):
+        record_path = search_path / "notes.jsonl"
+        record = json.loads(record_path.read_text(encoding="utf-8"))
+        note_id = str(record["note_id"])
+        note_url = (
+            f"https://www.xiaohongshu.com/explore/{note_id}"
+            f"?xsec_token=token-{index}&xsec_source=pc_search"
+        )
+        record["note_url"] = note_url
+        record_path.write_text(json.dumps(record), encoding="utf-8")
+        selected_ids.append(note_id)
+        expected_urls.append(note_url)
+
+    assert await probe.run_live(root, selected_ids, run_id) == 7
+    assert CapturingAdapter.detail_targets == expected_urls
 
 
 @pytest.mark.asyncio

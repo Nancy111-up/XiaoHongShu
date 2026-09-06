@@ -15,6 +15,7 @@ from collections import Counter
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import parse_qs, urlparse
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
@@ -81,6 +82,32 @@ def _representative_ids(value: object) -> list[str] | None:
         return None
     ids = [str(item) for item in value]
     return ids if len(set(ids)) == 3 else None
+
+
+def _detail_targets(root: Path, representatives: list[str]) -> list[str] | None:
+    """Resolve selected IDs to the tokenized Search URLs required by XHS Detail."""
+
+    selected = set(representatives)
+    matches: dict[str, str] = {}
+    for path in sorted(root.glob("search-*")):
+        for row in _records(path):
+            note_id = row.get("note_id")
+            note_url = row.get("note_url")
+            if note_id not in selected or not isinstance(note_url, str):
+                continue
+            parsed = urlparse(note_url)
+            query = parse_qs(parsed.query)
+            if (
+                parsed.scheme == "https"
+                and parsed.hostname == "www.xiaohongshu.com"
+                and parsed.path.rstrip("/").endswith(f"/{note_id}")
+                and query.get("xsec_token", [""])[0]
+                and query.get("xsec_source", [""])[0]
+            ):
+                matches.setdefault(str(note_id), note_url)
+    if set(matches) != selected:
+        return None
+    return [matches[note_id] for note_id in representatives]
 
 
 def _job_manifest(
@@ -376,11 +403,15 @@ async def run_live(root: Path, note_ids: list[str], run_id: str | None = None) -
     if _search_phase(root, run, completed=False) != 0:
         print("REFUSED: Search artifacts are not bound to this unfinished run")
         return 3
+    detail_targets = _detail_targets(root, representatives)
+    if detail_targets is None:
+        print("REFUSED: selected notes require tokenized Xiaohongshu Search URLs")
+        return 3
 
     detail_path = root / "detail-1"
     persisted_run = {key: value for key, value in run.items() if not key.startswith("_")}
     try:
-        execution = await adapter.run_detail(representatives, detail_path)
+        execution = await adapter.run_detail(detail_targets, detail_path)
     except (asyncio.CancelledError, KeyboardInterrupt):
         _finish_run(root, persisted_run, "interrupted")
         raise
