@@ -16,7 +16,10 @@ const items = [
 ]
 
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok:true, json:async()=>({items,data_source:"live"}) }))
+  vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+    if (options?.method === "POST") return { ok:true, status:202, json:async()=>({}) }
+    return { ok:true, json:async()=>({items,data_source:"live"}) }
+  }))
 })
 
 describe("OpportunityPage", () => {
@@ -32,5 +35,23 @@ describe("OpportunityPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /城市夜跑装备清单/ }))
     expect(screen.getByRole("heading", { name: "城市夜跑装备清单", level: 2 })).toBeInTheDocument()
     expect(screen.getByText("夜跑安全与轻量装备组合")).toBeInTheDocument()
+  })
+
+  it("navigates to every workspace module", async () => {
+    render(<OpportunityPage />)
+    fireEvent.click(await screen.findByRole("button", { name: /品牌大脑/ }))
+    expect(screen.getByRole("heading", { name: "品牌大脑", level: 1 })).toBeInTheDocument()
+    expect(screen.getByText("品牌定位与内容策略")).toBeInTheDocument()
+    expect(await screen.findByText("已载入 2 条记录")).toBeInTheDocument()
+    expect(screen.getByLabelText("品牌定位")).toBeInTheDocument()
+    expect(screen.getByRole("button", { name:"保存品牌大脑" })).toBeInTheDocument()
+  })
+
+  it("starts a real refresh and shows feedback", async () => {
+    render(<OpportunityPage />)
+    fireEvent.click(await screen.findByRole("button", { name: /刷新热点/ }))
+    expect(await screen.findByText("刷新任务已启动")).toBeInTheDocument()
+    expect(fetch).toHaveBeenCalledWith(expect.stringContaining("/refresh-jobs"),
+      expect.objectContaining({ method:"POST" }))
   })
 })
