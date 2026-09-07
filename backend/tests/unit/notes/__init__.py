@@ -1,0 +1,1 @@
+"""Note normalization unit tests."""
