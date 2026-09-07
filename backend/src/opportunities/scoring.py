@@ -42,3 +42,21 @@ def decision(score: float, eligibility: str = "eligible") -> str:
     if score >= 50:
         return "Watch"
     return "Ignore"
+
+
+def content_goals(scores: OpportunityDimensions) -> list[str]:
+    if (
+        scores.audience_relevance >= 70
+        and scores.content_opportunity >= 65
+        and scores.product_fit < 60
+    ):
+        return ["流量"]
+    ranked = sorted(
+        (
+            (scores.audience_relevance, "流量"),
+            (scores.brand_relevance, "品牌"),
+            (scores.product_fit, "产品"),
+        ),
+        reverse=True,
+    )
+    return [goal for score, goal in ranked[:2] if score >= 50]

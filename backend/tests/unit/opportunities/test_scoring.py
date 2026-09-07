@@ -2,6 +2,7 @@ import pytest
 
 from src.opportunities.scoring import (
     OpportunityDimensions,
+    content_goals,
     decision,
     opportunity_score,
     trend_timing,
@@ -48,3 +49,13 @@ def test_decision_boundaries(score: float, expected: str) -> None:
 
 def test_filtered_gate_always_wins() -> None:
     assert decision(100, eligibility="filtered") == "Filtered"
+
+
+def test_content_goals_never_returns_more_than_two() -> None:
+    goals = content_goals(OpportunityDimensions(90, 90, 90, 90, 90))
+    assert len(goals) <= 2
+
+
+def test_audience_gap_without_product_fit_prioritizes_traffic() -> None:
+    scores = OpportunityDimensions(50, 70, 50, 65, 59)
+    assert content_goals(scores) == ["流量"]

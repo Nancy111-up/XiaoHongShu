@@ -37,3 +37,9 @@ class BrandProfileInput(BaseModel):
     forbidden: list[str] = Field(default_factory=list)
     content_strategy: ContentStrategy
     products: list[ProductInput] = Field(default_factory=list)
+
+
+class BrandProfileVersion(BaseModel):
+    model_config = ConfigDict(frozen=True)
+    version: int = Field(ge=1)
+    profile: BrandProfileInput
