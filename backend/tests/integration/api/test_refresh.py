@@ -8,6 +8,31 @@ from src.db.models import RefreshJob
 from src.db.session import create_session_factory
 
 
+def create_app_for_test(tmp_path, run_refresh):  # type: ignore[no-untyped-def]
+    factory = create_session_factory(
+        f"sqlite+aiosqlite:///{(tmp_path / 'refresh.db').as_posix()}"
+    )
+
+    async def initialize() -> None:
+        async with factory() as session, session.bind.begin() as connection:  # type: ignore[union-attr]
+            await connection.run_sync(Base.metadata.create_all)
+
+    import asyncio
+
+    asyncio.run(initialize())
+    return create_app(factory, run_refresh=run_refresh)
+
+
+def test_creating_refresh_dispatches_runner(tmp_path) -> None:
+    dispatched: list[str] = []
+    app = create_app_for_test(tmp_path, run_refresh=lambda job_id: dispatched.append(job_id))
+
+    response = TestClient(app).post("/api/refresh-jobs")
+
+    assert response.status_code == 202
+    assert dispatched == [response.json()["id"]]
+
+
 def test_second_refresh_returns_exact_conflict(tmp_path) -> None:
     factory = create_session_factory(f"sqlite+aiosqlite:///{(tmp_path / 'refresh.db').as_posix()}")
 

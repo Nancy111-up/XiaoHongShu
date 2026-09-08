@@ -5,15 +5,20 @@ from src.api.analytics import build_router as build_analytics_router
 from src.api.brand import build_router as build_brand_router
 from src.api.content import build_router as build_content_router
 from src.api.opportunities import build_router as build_opportunities_router
+from src.api.refresh import RunRefresh
 from src.api.refresh import build_router as build_refresh_router
 from src.content.service import ContentService
 
 
 def build_api_router(
-    sessions: async_sessionmaker[AsyncSession], content_service: ContentService | None = None
+    sessions: async_sessionmaker[AsyncSession],
+    content_service: ContentService | None = None,
+    run_refresh: RunRefresh | None = None,
 ) -> APIRouter:
     router = APIRouter(prefix="/api")
-    router.include_router(build_refresh_router(sessions))
+    if run_refresh is None:
+        raise ValueError("run_refresh is required")
+    router.include_router(build_refresh_router(sessions, run_refresh))
     router.include_router(build_opportunities_router(sessions))
     router.include_router(build_brand_router(sessions))
     router.include_router(build_content_router(sessions, content_service))

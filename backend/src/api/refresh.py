@@ -1,20 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
-from fastapi import APIRouter
+from fastapi import APIRouter, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.refresh.status import RefreshRepository
 
+RunRefresh = Callable[[str], Awaitable[None] | None]
 
-def build_router(sessions: async_sessionmaker[AsyncSession]) -> APIRouter:
+
+def build_router(
+    sessions: async_sessionmaker[AsyncSession], run_refresh: RunRefresh
+) -> APIRouter:
     router = APIRouter(tags=["refresh"])
     repository = RefreshRepository(sessions)
 
     @router.post("/refresh-jobs", status_code=202)
-    async def create_refresh_job() -> object:
+    async def create_refresh_job(background_tasks: BackgroundTasks) -> object:
         active = await repository.active_job()
         if active is not None:
             return JSONResponse(
@@ -22,6 +27,7 @@ def build_router(sessions: async_sessionmaker[AsyncSession]) -> APIRouter:
                 content={"code": "REFRESH_ALREADY_RUNNING", "running_job_id": active.id},
             )
         created = await repository.create(status="queued", updated_at=datetime.now(UTC))
+        background_tasks.add_task(run_refresh, created.id)
         return {"id": created.id, "status": created.status}
 
     @router.get("/refresh-jobs/{job_id}")
