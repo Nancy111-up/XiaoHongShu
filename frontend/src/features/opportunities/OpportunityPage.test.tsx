@@ -26,7 +26,11 @@ describe("OpportunityPage", () => {
   it("renders live decision data", async () => {
     render(<OpportunityPage />)
     expect(await screen.findByText("实时数据")).toBeInTheDocument()
-    expect(screen.getByText("当前热度")).toBeInTheDocument()
+    expect(screen.getByText("总机会")).toBeInTheDocument()
+    expect(screen.getByText("高潜机会")).toBeInTheDocument()
+    expect(screen.getByText("待审核")).toBeInTheDocument()
+    expect(screen.getByText("已生成草稿")).toBeInTheDocument()
+    expect(screen.getByTestId("app-shell")).toHaveClass("fresh-forest")
     expect(screen.getByRole("button", { name: "接受并生成草稿" })).toBeInTheDocument()
   })
 

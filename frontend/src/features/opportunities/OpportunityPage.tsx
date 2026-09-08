@@ -15,7 +15,9 @@ export function OpportunityPage() {
   const [notice, setNotice] = useState<string | null>(null)
   const selected = items.find((item) => item.id === selectedId) ?? items[0]
 
-  return <main className="workspace-shell">
+  const highPotential = items.filter(item=>item.score!==null&&item.score>=80).length
+  const manualReview = items.filter(item=>item.eligibility==="manual_review").length
+  return <main className="workspace-shell fresh-forest" data-testid="app-shell">
     <aside className="sidebar">
       <div className="wordmark"><span className="wordmark-mark">B</span><div>BRAND PACE<small>SPORTS OPERATIONS</small></div></div>
       <div className="brand-context"><span className="brand-ball">RUN</span><div><small>当前品牌</small><strong>体育品牌工作区</strong></div></div>
@@ -25,6 +27,7 @@ export function OpportunityPage() {
     <section className="app-area">
       <header className="topbar"><div><p className="eyebrow">{["OPPORTUNITY DESK","CONTENT STUDIO","CALENDAR","ANALYTICS","BRAND BRAIN"][activeModule]}</p><h1>{navItems[activeModule]}</h1></div><div className="topbar-actions"><DataSourceBadge source={data_source}/>{activeModule===0&&<button type="button" className="refresh-button" onClick={()=>void (async()=>{try{await refresh();setNotice("刷新任务已启动")}catch{setNotice("刷新任务启动失败")}})()}>↻ 刷新热点</button>}<span className="avatar">林</span></div></header>
       {notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice(null)}>×</button></div>}
+      {activeModule===0&&<><section className="summary-strip"><Summary label="总机会" value={items.length}/><Summary label="高潜机会" value={highPotential}/><Summary label="待审核" value={manualReview}/><Summary label="已生成草稿" value={0}/></section><nav className="insight-tabs" aria-label="机会视图"><button className="active">热点洞察</button><button>趋势变化</button><button>内容缺口</button><button>品牌适配</button><button>产品机会</button></nav></>}
       {activeModule!==0 ? <ModuleView index={activeModule}/> : loading ? <StatePanel text="正在读取最新机会…"/> : error ? <StatePanel text={error}/> : !selected ? <StatePanel text="还没有可展示的机会，请先刷新热点。"/> : <Workspace items={items} selected={selected} onSelect={setSelectedId} onNotice={setNotice}/>} 
     </section>
   </main>
@@ -72,4 +75,8 @@ function BrandForm() {
 
 function Metric({ label, value }: { label: string; value: string | number | null }) {
   return <article><span>{label}</span><strong>{value ?? "—"}</strong></article>
+}
+
+function Summary({label,value}:{label:string;value:number}) {
+  return <article><strong>{value}</strong><span>{label}</span></article>
 }
