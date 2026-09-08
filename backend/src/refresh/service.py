@@ -13,6 +13,9 @@ from src.notes.normalizer import normalize_comment_record, normalize_search_reco
 from src.notes.schemas import NormalizedComment, NormalizedNote
 from src.refresh.status import RefreshJobStore
 
+_SEARCH_COLLECTION_FAILURE_SUMMARY = "搜索采集失败，请检查采集账号后重试。"
+_DETAIL_COLLECTION_FAILURE_SUMMARY = "详情采集失败，已保留搜索结果。"
+
 
 class RefreshAlreadyRunning(Exception):  # noqa: N818 - public contract name
     code = "REFRESH_ALREADY_RUNNING"
@@ -56,6 +59,10 @@ class StatusStore(Protocol):
 
     async def record_keyword_results(
         self, job_id: str, successful: list[str], failed: list[str], now: datetime
+    ) -> RefreshJob: ...
+
+    async def record_error_summary(
+        self, job_id: str, safe_summary: str, now: datetime
     ) -> RefreshJob: ...
 
 
@@ -111,6 +118,9 @@ class TwoPassRefreshCoordinator:
             job.id, successful_keywords, failed_keywords, now
         )
         if not successful_keywords:
+            await self._statuses.record_error_summary(
+                job.id, _SEARCH_COLLECTION_FAILURE_SUMMARY, now
+            )
             return await self._statuses.transition(job.id, "failed", now)
 
         job = await self._statuses.transition(job.id, "normalizing", now)
@@ -123,6 +133,9 @@ class TwoPassRefreshCoordinator:
         detail_path = raw_root / "detail"
         execution = await self._crawler.run_detail(representative_ids, detail_path)
         if execution.exit_code != 0:
+            await self._statuses.record_error_summary(
+                job.id, _DETAIL_COLLECTION_FAILURE_SUMMARY, now
+            )
             return await self._statuses.transition(job.id, "partial_success", now)
         detail_notes = [
             normalize_search_record(record, execution.finished_at)

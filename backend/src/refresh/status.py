@@ -33,6 +33,10 @@ class RefreshJobStore(Protocol):
 
     async def fail(self, job_id: str, safe_summary: str, now: datetime) -> RefreshJob: ...
 
+    async def record_error_summary(
+        self, job_id: str, safe_summary: str, now: datetime
+    ) -> RefreshJob: ...
+
     async def stale_active(self, cutoff: datetime) -> list[RefreshJob]: ...
 
 
@@ -115,6 +119,17 @@ class RefreshRepository:
             job.error_summary = safe_summary
             job.updated_at = now
             job.finished_at = now
+            return job
+
+    async def record_error_summary(
+        self, job_id: str, safe_summary: str, now: datetime
+    ) -> RefreshJob:
+        async with self._session_factory() as session, session.begin():
+            job = await session.get(RefreshJob, job_id)
+            if job is None:
+                raise LookupError(f"refresh job {job_id} does not exist")
+            job.error_summary = safe_summary
+            job.updated_at = now
             return job
 
     async def stale_active(self, cutoff: datetime) -> list[RefreshJob]:

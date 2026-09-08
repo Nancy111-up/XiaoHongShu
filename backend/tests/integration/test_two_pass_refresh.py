@@ -93,6 +93,7 @@ class CapturingStatusRepository:
         self.job = job
         self.transitions: list[str] = []
         self.keyword_results: tuple[list[str], list[str]] | None = None
+        self.error_summaries: list[str] = []
 
     async def transition(self, job_id: str, status: str, now: datetime) -> RefreshJob:
         assert job_id == self.job.id
@@ -106,6 +107,13 @@ class CapturingStatusRepository:
     ) -> RefreshJob:
         assert job_id == self.job.id
         self.keyword_results = (successful, failed)
+        return self.job
+
+    async def record_error_summary(self, job_id: str, summary: str, now: datetime) -> RefreshJob:
+        assert job_id == self.job.id
+        self.error_summaries.append(summary)
+        self.job.error_summary = summary
+        self.job.updated_at = now
         return self.job
 
 
@@ -189,6 +197,7 @@ async def test_two_pass_refresh_fails_without_detail_when_every_keyword_fails(
 
     assert adapter.detail_calls == []
     assert result.status == "failed"
+    assert statuses.error_summaries == ["搜索采集失败，请检查采集账号后重试。"]
 
 
 @pytest.mark.asyncio
@@ -206,6 +215,7 @@ async def test_two_pass_refresh_marks_partial_success_when_detail_collection_fai
     result = await coordinator.run(job, ["校园足球"], tmp_path, now)
 
     assert result.status == "partial_success"
+    assert statuses.error_summaries == ["详情采集失败，已保留搜索结果。"]
 
 
 def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:

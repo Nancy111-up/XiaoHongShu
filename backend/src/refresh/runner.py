@@ -9,7 +9,7 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.crawler.adapter import MediaCrawlerAdapter, redact_sensitive_text
+from src.crawler.adapter import MediaCrawlerAdapter
 from src.crawler.settings import MediaCrawlerSettings
 from src.db.models import BrandProfile, RefreshJob
 from src.notes.repository import NoteRepository
@@ -101,8 +101,8 @@ class RefreshRunner:
             )
 
 
-def _safe_failure_summary(error: Exception) -> str:
-    return redact_sensitive_text(str(error))[-300:]
+def _safe_failure_summary(_: Exception) -> str:
+    return "刷新失败，请检查采集配置后重试。"
 
 
 def build_refresh_runner(sessions: async_sessionmaker[AsyncSession]) -> RefreshRunner:

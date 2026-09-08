@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 from alembic.config import Config
-from sqlalchemy import Engine, create_engine, inspect
+from sqlalchemy import Engine, create_engine, inspect, text
 
 from alembic import command
 
@@ -93,3 +93,43 @@ def test_initial_migration_indexes_operational_queries(
             for indexed_column in index["column_names"]
         }
         assert column in indexed_columns
+
+
+def test_refresh_error_summary_migration_repairs_legacy_jobs_without_data_loss(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "legacy-refresh.sqlite3"
+    engine = create_engine(f"sqlite:///{database_path.as_posix()}")
+    with engine.begin() as connection:
+        connection.execute(
+            text(
+                "CREATE TABLE refresh_jobs ("
+                "id VARCHAR(36) PRIMARY KEY, mode VARCHAR(32), status VARCHAR(32), "
+                "active_slot VARCHAR(16))"
+            )
+        )
+        connection.execute(
+            text(
+                "INSERT INTO refresh_jobs (id, mode, status, active_slot) "
+                "VALUES ('legacy-job', 'manual', 'failed', NULL)"
+            )
+        )
+    engine.dispose()
+    config = Config(str(BACKEND_ROOT / "alembic.ini"))
+    config.set_main_option("sqlalchemy.url", f"sqlite:///{database_path.as_posix()}")
+    command.stamp(config, "0002_single_active_refresh")
+
+    command.upgrade(config, "head")
+
+    engine = create_engine(f"sqlite:///{database_path.as_posix()}")
+    try:
+        assert "error_summary" in {
+            column["name"] for column in inspect(engine).get_columns("refresh_jobs")
+        }
+        with engine.connect() as connection:
+            assert connection.execute(text("SELECT id, status FROM refresh_jobs")).one() == (
+                "legacy-job",
+                "failed",
+            )
+    finally:
+        engine.dispose()

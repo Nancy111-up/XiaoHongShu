@@ -84,3 +84,21 @@ async def test_repository_fail_persists_safe_summary_and_terminal_state(tmp_path
     assert failed.error_summary == "需要重新登录采集账号"
     assert failed.finished_at == now
     assert (await repository.get(job.id)).error_summary == "需要重新登录采集账号"
+
+
+@pytest.mark.asyncio
+async def test_repository_records_safe_summary_without_changing_partial_status(tmp_path) -> None:
+    factory = create_session_factory(
+        f"sqlite+aiosqlite:///{(tmp_path / 'refresh-status.db').as_posix()}"
+    )
+    now = datetime(2026, 9, 8, 12, tzinfo=UTC)
+    async with factory() as session, session.bind.begin() as connection:  # type: ignore[union-attr]
+        await connection.run_sync(Base.metadata.create_all)
+    repository = RefreshRepository(factory)
+    job = await repository.create(status="partial_success", updated_at=now)
+
+    updated = await repository.record_error_summary(job.id, "详情采集失败，已保留搜索结果。", now)
+
+    assert updated.status == "partial_success"
+    assert updated.error_summary == "详情采集失败，已保留搜索结果。"
+    assert (await repository.get(job.id)).error_summary == "详情采集失败，已保留搜索结果。"

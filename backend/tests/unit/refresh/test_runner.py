@@ -77,11 +77,11 @@ async def test_runner_marks_job_failed_when_coordination_raises(tmp_path) -> Non
 
     await runner.start(job.id)
 
-    assert repository.failures == [(job.id, "crawler unavailable", now)]
+    assert repository.failures == [(job.id, "刷新失败，请检查采集配置后重试。", now)]
 
 
 @pytest.mark.asyncio
-async def test_runner_redacts_and_caps_failure_summary(tmp_path) -> None:
+async def test_runner_does_not_expose_exception_text(tmp_path) -> None:
     now = datetime(2026, 9, 8, tzinfo=UTC)
     job = RefreshJob(id="job-1", mode="manual", status="queued", started_at=now)
     repository = FakeRepository(job)
@@ -96,6 +96,31 @@ async def test_runner_redacts_and_caps_failure_summary(tmp_path) -> None:
     await runner.start(job.id)
 
     _, summary, _ = repository.failures[0]
-    assert len(summary) == 300
+    assert summary == "刷新失败，请检查采集配置后重试。"
+    assert len(summary) <= 300
     assert "real-secret" not in summary
-    assert "[REDACTED]" in summary
+
+
+@pytest.mark.asyncio
+async def test_runner_uses_safe_public_message_for_checkout_failure(tmp_path) -> None:
+    now = datetime(2026, 9, 8, tzinfo=UTC)
+    job = RefreshJob(id="job-1", mode="manual", status="queued", started_at=now)
+    repository = FakeRepository(job)
+
+    def failing_checkout() -> None:
+        raise RuntimeError("origin https://user:checkout-secret@example.test rejected")
+
+    runner = RefreshRunner(
+        repository,  # type: ignore[arg-type]
+        RecordingCoordinator(),
+        FakeKeywords(),
+        tmp_path / "raw",
+        now=lambda: now,
+        verify_checkout=failing_checkout,
+    )
+
+    await runner.start(job.id)
+
+    _, summary, _ = repository.failures[0]
+    assert summary == "刷新失败，请检查采集配置后重试。"
+    assert "checkout-secret" not in summary
