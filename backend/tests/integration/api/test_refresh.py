@@ -98,3 +98,41 @@ def test_second_refresh_returns_exact_conflict(tmp_path) -> None:
     response = TestClient(create_app(factory)).post("/api/refresh-jobs")
     assert response.status_code == 409
     assert response.json() == {"code": "REFRESH_ALREADY_RUNNING", "running_job_id": "job-running-1"}
+
+
+def test_refresh_job_status_exposes_decoded_progress_and_safe_failure(tmp_path) -> None:
+    factory = create_session_factory(f"sqlite+aiosqlite:///{(tmp_path / 'refresh.db').as_posix()}")
+    updated_at = datetime(2026, 9, 8, 12, tzinfo=UTC)
+
+    async def seed() -> None:
+        async with factory() as session:
+            async with session.bind.begin() as connection:  # type: ignore[union-attr]
+                await connection.run_sync(Base.metadata.create_all)
+            session.add(
+                RefreshJob(
+                    id="job-failed-1",
+                    mode="manual",
+                    status="failed",
+                    started_at=updated_at,
+                    updated_at=updated_at,
+                    successful_keywords='["夜跑"]',
+                    failed_keywords='["运动恢复"]',
+                    error_summary="需要重新登录采集账号",
+                )
+            )
+            await session.commit()
+
+    import asyncio
+
+    asyncio.run(seed())
+    response = TestClient(create_app(factory)).get("/api/refresh-jobs/job-failed-1")
+
+    assert response.status_code == 200
+    assert response.json() == {
+        "id": "job-failed-1",
+        "status": "failed",
+        "successfulKeywords": ["夜跑"],
+        "failedKeywords": ["运动恢复"],
+        "errorSummary": "需要重新登录采集账号",
+        "updatedAt": "2026-09-08T12:00:00",
+    }

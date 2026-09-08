@@ -31,6 +31,8 @@ class RefreshJobStore(Protocol):
         self, job_id: str, successful: list[str], failed: list[str], now: datetime
     ) -> RefreshJob: ...
 
+    async def fail(self, job_id: str, safe_summary: str, now: datetime) -> RefreshJob: ...
+
     async def stale_active(self, cutoff: datetime) -> list[RefreshJob]: ...
 
 
@@ -101,6 +103,18 @@ class RefreshRepository:
             job.successful_keywords = json.dumps(successful, ensure_ascii=False)
             job.failed_keywords = json.dumps(failed, ensure_ascii=False)
             job.updated_at = now
+            return job
+
+    async def fail(self, job_id: str, safe_summary: str, now: datetime) -> RefreshJob:
+        async with self._session_factory() as session, session.begin():
+            job = await session.get(RefreshJob, job_id)
+            if job is None:
+                raise LookupError(f"refresh job {job_id} does not exist")
+            job.status = "failed"
+            job.active_slot = None
+            job.error_summary = safe_summary
+            job.updated_at = now
+            job.finished_at = now
             return job
 
     async def stale_active(self, cutoff: datetime) -> list[RefreshJob]:

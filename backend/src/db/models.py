@@ -63,7 +63,7 @@ class RefreshJob(Base):
     successful_keywords: Mapped[str | None] = mapped_column(Text)
     failed_keywords: Mapped[str | None] = mapped_column(Text)
     error_code: Mapped[str | None] = mapped_column(String(64))
-    error_summary: Mapped[str | None] = mapped_column(Text)
+    error_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Note(Base):

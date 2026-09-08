@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Awaitable, Callable
 from datetime import UTC, datetime
 
@@ -40,6 +41,20 @@ def build_router(
         job = await repository.get(job_id)
         if job is None:
             return JSONResponse(status_code=404, content={"code": "REFRESH_JOB_NOT_FOUND"})
-        return {"id": job.id, "status": job.status, "updatedAt": job.updated_at}
+        return {
+            "id": job.id,
+            "status": job.status,
+            "successfulKeywords": _decode_keywords(job.successful_keywords),
+            "failedKeywords": _decode_keywords(job.failed_keywords),
+            "errorSummary": job.error_summary,
+            "updatedAt": job.updated_at,
+        }
 
     return router
+
+
+def _decode_keywords(value: str | None) -> list[str]:
+    if value is None:
+        return []
+    decoded = json.loads(value)
+    return decoded if isinstance(decoded, list) else []

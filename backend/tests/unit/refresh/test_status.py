@@ -4,8 +4,10 @@ from datetime import UTC, datetime, timedelta
 
 import pytest
 
+from src.db.base import Base
+from src.db.session import create_session_factory
 from src.refresh.service import RefreshAlreadyRunning, RefreshService
-from src.refresh.status import ACTIVE_STATUSES, recover_stale_jobs
+from src.refresh.status import ACTIVE_STATUSES, RefreshRepository, recover_stale_jobs
 
 
 class InMemoryRefreshRepository:
@@ -63,3 +65,22 @@ async def test_stale_active_job_becomes_interrupted() -> None:
 
     assert recovered == [job.id]
     assert (await repository.get(job.id)).status == "interrupted"
+
+
+@pytest.mark.asyncio
+async def test_repository_fail_persists_safe_summary_and_terminal_state(tmp_path) -> None:
+    factory = create_session_factory(
+        f"sqlite+aiosqlite:///{(tmp_path / 'refresh-status.db').as_posix()}"
+    )
+    now = datetime(2026, 9, 8, 12, tzinfo=UTC)
+    async with factory() as session, session.bind.begin() as connection:  # type: ignore[union-attr]
+        await connection.run_sync(Base.metadata.create_all)
+    repository = RefreshRepository(factory)
+    job = await repository.create(status="queued", updated_at=now)
+
+    failed = await repository.fail(job.id, "需要重新登录采集账号", now)
+
+    assert failed.status == "failed"
+    assert failed.error_summary == "需要重新登录采集账号"
+    assert failed.finished_at == now
+    assert (await repository.get(job.id)).error_summary == "需要重新登录采集账号"

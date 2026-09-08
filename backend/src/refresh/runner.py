@@ -9,7 +9,7 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.crawler.adapter import MediaCrawlerAdapter
+from src.crawler.adapter import MediaCrawlerAdapter, redact_sensitive_text
 from src.crawler.settings import MediaCrawlerSettings
 from src.db.models import BrandProfile, RefreshJob
 from src.notes.repository import NoteRepository
@@ -95,8 +95,14 @@ class RefreshRunner:
             self._verify_checkout()
             keywords = await self._keywords.load()
             await self._coordinator.run(job, keywords, self._raw_root / job.id, self._now())
-        except Exception:
-            await self._repository.transition(job.id, "failed", self._now())
+        except Exception as error:
+            await self._repository.fail(
+                job.id, _safe_failure_summary(error), self._now()
+            )
+
+
+def _safe_failure_summary(error: Exception) -> str:
+    return redact_sensitive_text(str(error))[-300:]
 
 
 def build_refresh_runner(sessions: async_sessionmaker[AsyncSession]) -> RefreshRunner:
