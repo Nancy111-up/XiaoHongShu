@@ -9,11 +9,16 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.core.config import Settings
 from src.crawler.adapter import MediaCrawlerAdapter
 from src.crawler.settings import MediaCrawlerSettings
 from src.db.models import BrandProfile, RefreshJob
+from src.llm.client import OpenAICompatibleTransport, StructuredLLMClient
+from src.llm.repository import LLMRunRepository
+from src.llm.service import LLMService
 from src.notes.repository import NoteRepository
 from src.notes.schemas import NormalizedNote
+from src.opportunities.pipeline import OpportunityPipeline
 from src.refresh.service import TwoPassRefreshCoordinator
 from src.refresh.status import RefreshRepository
 
@@ -79,6 +84,7 @@ class RefreshRunner:
         raw_root: Path,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         verify_checkout: Callable[[], None] = lambda: None,
+        pipeline: OpportunityPipeline | None = None,
     ) -> None:
         self._repository = repository
         self._coordinator = coordinator
@@ -86,6 +92,7 @@ class RefreshRunner:
         self._raw_root = raw_root
         self._now = now
         self._verify_checkout = verify_checkout
+        self._pipeline = pipeline
 
     async def start(self, job_id: str) -> None:
         job = await self._repository.get(job_id)
@@ -94,11 +101,29 @@ class RefreshRunner:
         try:
             self._verify_checkout()
             keywords = await self._keywords.load()
-            await self._coordinator.run(job, keywords, self._raw_root / job.id, self._now())
-        except Exception as error:
-            await self._repository.fail(
-                job.id, _safe_failure_summary(error), self._now()
+            collected = await self._coordinator.run(
+                job, keywords, self._raw_root / job.id, self._now()
             )
+        except Exception as error:
+            await self._repository.fail(job.id, _safe_failure_summary(error), self._now())
+            return
+        if self._pipeline is None or collected.status in {"failed", "interrupted"}:
+            return
+        try:
+            await self._pipeline.build(job.id)
+        except Exception:
+            summary = "AI 分析不可用，请检查 AI 配置后重试；已保留采集结果。"
+            if collected.error_summary:
+                summary = f"{collected.error_summary} {summary}"
+            await self._repository.record_error_summary(job.id, summary[:300], self._now())
+            await self._repository.transition(job.id, "partial_success", self._now())
+            return
+        final = (
+            "partial_success"
+            if (collected.status == "partial_success" or collected.error_summary)
+            else "completed"
+        )
+        await self._repository.transition(job.id, final, self._now())
 
 
 def _safe_failure_summary(_: Exception) -> str:
@@ -114,6 +139,7 @@ def build_refresh_runner(sessions: async_sessionmaker[AsyncSession]) -> RefreshR
         NoteRepository(sessions),
         repository,
         RepresentativeResolver(),
+        finalize=False,
     )
     return RefreshRunner(
         repository,
@@ -121,4 +147,21 @@ def build_refresh_runner(sessions: async_sessionmaker[AsyncSession]) -> RefreshR
         BrandKeywordProvider(sessions),
         project_root / "data" / "raw",
         verify_checkout=settings.verify_checkout,
+        pipeline=OpportunityPipeline(sessions, _configured_llm(sessions, project_root)),
+    )
+
+
+def _configured_llm(
+    sessions: async_sessionmaker[AsyncSession], project_root: Path
+) -> LLMService | None:
+    settings = Settings()
+    if settings.llm_api_key is None or not settings.llm_api_key.get_secret_value().strip():
+        return None
+    return LLMService(
+        StructuredLLMClient(
+            OpenAICompatibleTransport(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
+        ),
+        LLMRunRepository(sessions),
+        project_root / "backend" / "prompts",
+        settings.llm_model,
     )

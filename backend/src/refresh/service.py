@@ -79,11 +79,14 @@ class TwoPassRefreshCoordinator:
         notes: NoteStore,
         statuses: StatusStore,
         topic_resolver: TopicResolver,
+        *,
+        finalize: bool = True,
     ) -> None:
         self._crawler = crawler
         self._notes = notes
         self._statuses = statuses
         self._topic_resolver = topic_resolver
+        self._finalize = finalize
 
     async def run(
         self,
@@ -137,7 +140,9 @@ class TwoPassRefreshCoordinator:
             await self._statuses.record_error_summary(
                 job.id, _DETAIL_COLLECTION_FAILURE_SUMMARY, now
             )
-            return await self._statuses.transition(job.id, "partial_success", now)
+            return await self._statuses.transition(
+                job.id, "partial_success" if self._finalize else "enriching", now
+            )
         detail_notes = [
             normalize_search_record(record, execution.finished_at)
             for record in _read_jsonl(detail_path / "detail.jsonl")
@@ -148,14 +153,14 @@ class TwoPassRefreshCoordinator:
         ]
         await self._notes.upsert_refresh_data(job, detail_notes, comments)
         final_status = "partial_success" if failed_keywords else "completed"
-        return await self._statuses.transition(job.id, final_status, now)
+        return await self._statuses.transition(
+            job.id, final_status if self._finalize else "enriching", now
+        )
 
 
 def _read_jsonl(path: Path) -> list[dict[str, object]]:
     if not path.exists():
         return []
     return [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]

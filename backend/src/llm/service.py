@@ -66,13 +66,23 @@ class LLMService:
         }
         last_raw = last_error = ""
         for _ in range(2):
-            last_raw = await self._client.complete(
-                model=self._model,
-                prompt=prompt,
-                input=input_json,
-                temperature=0,
-                json_schema=schema.model_json_schema(),
-            )
+            try:
+                last_raw = await self._client.complete(
+                    model=self._model,
+                    prompt=prompt,
+                    input=input_json,
+                    temperature=0,
+                    json_schema=schema.model_json_schema(),
+                )
+            except Exception:
+                await self._runs.save(
+                    **trace,
+                    status="failed",
+                    raw_response=None,
+                    parsed_response=None,
+                    error="AI provider request failed",
+                )
+                raise LLMAnalysisUnavailableError("AI provider request failed") from None
             try:
                 parsed = schema.model_validate_json(last_raw)
                 self._validate_evidence(parsed, allowed_note_ids, allowed_comment_ids)
@@ -98,6 +108,8 @@ class LLMService:
     ) -> None:
         data = parsed.model_dump()
         note_ids = set(data.get("evidence_note_ids", []))
+        for cluster in data.get("clusters", []):
+            note_ids.update(cluster.get("note_ids", []))
         comment_ids = set(data.get("evidence_comment_ids", []))
         categories = data.get("categories")
         if isinstance(categories, dict):
@@ -118,7 +130,7 @@ class LLMService:
         )
 
     async def resolve_topic_identity(
-        self, *, job_id: str, topic_id: str, context: dict[str, object]
+        self, *, job_id: str, topic_id: str | None, context: dict[str, object]
     ) -> TopicResolution:
         return await self._call(
             task_type="resolve_topic_identity",
@@ -130,7 +142,7 @@ class LLMService:
         )
 
     async def analyze_comments(
-        self, *, job_id: str, topic_id: str, comments: list[dict[str, object]]
+        self, *, job_id: str, topic_id: str | None, comments: list[dict[str, object]]
     ) -> CommentAnalysis:
         return await self._call(
             task_type="analyze_comments",
@@ -158,7 +170,7 @@ class LLMService:
 
     async def analyze_content_gap(self, **context: object) -> ContentGap:
         return await self._evidence_call(
-            "analyze_content_gap", "opportunity_scoring_v1", ContentGap, context
+            "analyze_content_gap", "content_gap_v1", ContentGap, context
         )
 
     async def generate_opportunity_explanation(self, **context: object) -> OpportunityExplanation:
@@ -188,7 +200,9 @@ class LLMService:
             task_type=task_type,
             prompt_version=prompt_version,
             schema=schema,
-            payload=context,
+            payload={"task_type": task_type, **context},
+            job_id=str(context["job_id"]) if context.get("job_id") else None,
+            topic_id=str(context["topic_id"]) if context.get("topic_id") else None,
             allowed_note_ids=_ids(context, "note_ids"),
             allowed_comment_ids=_ids(context, "comment_ids"),
         )

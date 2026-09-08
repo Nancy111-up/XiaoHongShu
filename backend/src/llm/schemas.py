@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -46,6 +48,8 @@ class ScoredEvidence(StrictModel):
 
 
 class ContentGap(StrictModel):
+    score: float = Field(ge=0, le=100)
+    risk: Literal["low", "medium", "high"]
     gap: str
     angle: str
     evidence_note_ids: list[str] = Field(default_factory=list)
