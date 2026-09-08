@@ -127,7 +127,8 @@ class OpportunityPipeline:
                         select(LLMRun.id).where(
                             LLMRun.job_id == job_id,
                             LLMRun.status == "completed",
-                            (LLMRun.topic_id == snapshot.topic_id) | LLMRun.topic_id.is_(None),
+                            (LLMRun.topic_id == snapshot.topic_id)
+                            | (LLMRun.topic_id.is_(None) & (LLMRun.task_type == "cluster_topics")),
                         )
                     )
                 )
@@ -360,9 +361,42 @@ class OpportunityPipeline:
                         for n in sorted(ids)
                     ]
                 )
+                await _assign_topic_runs(
+                    session,
+                    job.id,
+                    topic.topic_id,
+                    ids,
+                    {comment.comment_id for comment in comments},
+                )
                 await session.commit()
                 saved.append(snapshot)
         return saved
+
+
+async def _assign_topic_runs(
+    session: AsyncSession,
+    job_id: str,
+    topic_id: str,
+    note_ids: set[str],
+    comment_ids: set[str],
+) -> None:
+    # Identity and comment analysis precede topic persistence. Bind their traces once
+    # the canonical topic exists, using the complete evidence set from each input.
+    runs = await session.scalars(
+        select(LLMRun).where(
+            LLMRun.job_id == job_id,
+            LLMRun.topic_id.is_(None),
+            LLMRun.task_type.in_(("resolve_topic_identity", "analyze_comments")),
+        )
+    )
+    for run in runs:
+        payload = json.loads(run.input_json)
+        if run.task_type == "resolve_topic_identity":
+            matches = set(payload["note_ids"]) == note_ids
+        else:
+            matches = {comment["comment_id"] for comment in payload} == comment_ids
+        if matches:
+            run.topic_id = topic_id
 
 
 class _IdentityResolver:

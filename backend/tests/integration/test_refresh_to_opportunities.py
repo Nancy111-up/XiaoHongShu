@@ -12,11 +12,13 @@ from src.app import create_app
 from src.db.base import Base
 from src.db.models import (
     BrandProfile,
+    Comment,
     LLMRun,
     Note,
     NoteSnapshot,
     Opportunity,
     OpportunityLLMRun,
+    Topic,
     TopicSnapshot,
     TopicSnapshotNote,
 )
@@ -235,3 +237,134 @@ async def test_detail_failure_remains_partial_after_successful_analysis(tmp_path
     assert stored.status == "partial_success" and "详情采集失败" in stored.error_summary
     async with factory() as session:
         assert await session.scalar(select(Opportunity)) is not None
+
+
+class TwoTopicEvidenceClient(EvidenceClient):
+    async def complete(self, **kwargs: object) -> str:
+        payload = json.loads(str(kwargs["input"]))
+        name = kwargs["json_schema"]["title"]
+        if name == "TopicClusters":
+            return json.dumps(
+                {
+                    "clusters": [
+                        {"name": group, "note_ids": [f"{group}-{index}" for index in range(3)]}
+                        for group in ("running", "football")
+                    ]
+                }
+            )
+        if name == "TopicResolution":
+            return json.dumps(
+                {
+                    "canonical_topic_id": payload["candidate"],
+                    "canonical_name": payload["candidate"],
+                    "confidence": 0.95,
+                }
+            )
+        if name == "CommentAnalysis":
+            return json.dumps(
+                {
+                    "analyzed_comment_count": len(payload),
+                    "categories": {
+                        "question": [comment["comment_id"] for comment in payload],
+                        "pain_point": [],
+                        "request": [],
+                        "purchase_intent": [],
+                        "experience": [],
+                        "other": [],
+                    },
+                }
+            )
+        return await super().complete(**kwargs)
+
+
+@pytest.mark.asyncio
+async def test_two_topics_link_only_their_own_identity_comment_and_evidence_runs(tmp_path) -> None:
+    factory, statuses, _, pipeline = await setup_refresh(tmp_path, TwoTopicEvidenceClient())
+    job = await statuses.create(status="enriching", updated_at=NOW)
+    async with factory() as session:
+        for group in ("running", "football"):
+            # Existing topics without note overlap force semantic identity resolution for both.
+            session.add(
+                Topic(
+                    topic_id=group,
+                    canonical_name=group,
+                    first_seen_at=NOW,
+                    last_seen_at=NOW,
+                    status="Observing",
+                )
+            )
+            for index in range(3):
+                note_id = f"{group}-{index}"
+                session.add(
+                    Note(
+                        note_id=note_id,
+                        title=note_id,
+                        body=f"{group} evidence",
+                        author_id=f"author-{note_id}",
+                        first_seen_at=NOW,
+                        last_seen_at=NOW,
+                        published_at=NOW,
+                        raw_payload_json="{}",
+                        url=f"https://www.xiaohongshu.com/explore/{note_id}",
+                    )
+                )
+                session.add(
+                    NoteSnapshot(
+                        job_id=job.id,
+                        note_id=note_id,
+                        captured_at=NOW,
+                        likes=10,
+                        collects=2,
+                        comments=5,
+                        data_completeness=1,
+                    )
+                )
+            for index in range(10):
+                session.add(
+                    Comment(
+                        comment_id=f"{group}-comment-{index}",
+                        job_id=job.id,
+                        note_id=f"{group}-{index % 3}",
+                        content=f"{group} question",
+                        captured_at=NOW,
+                    )
+                )
+        await session.commit()
+
+    opportunities = await pipeline.build(job.id)
+
+    assert {opportunity.topic_id for opportunity in opportunities} == {"running", "football"}
+    linked_run_ids = []
+    async with factory() as session:
+        cluster_run = await session.scalar(
+            select(LLMRun).where(LLMRun.job_id == job.id, LLMRun.task_type == "cluster_topics")
+        )
+        for opportunity in opportunities:
+            group = opportunity.topic_id
+            runs = list(
+                await session.scalars(
+                    select(LLMRun)
+                    .join(OpportunityLLMRun, OpportunityLLMRun.llm_run_id == LLMRun.id)
+                    .where(OpportunityLLMRun.opportunity_id == opportunity.id)
+                )
+            )
+            assert len(runs) == 9  # One shared cluster, own identity/comments, six semantic tasks.
+            assert {run.task_type for run in runs} >= {
+                "cluster_topics",
+                "resolve_topic_identity",
+                "analyze_comments",
+            }
+            for run in runs:
+                if run.task_type == "cluster_topics":
+                    assert run.id == cluster_run.id
+                    continue
+                assert run.topic_id == group
+                payload = json.loads(run.input_json)
+                if run.task_type == "analyze_comments":
+                    assert {comment["comment_id"] for comment in payload} == {
+                        f"{group}-comment-{index}" for index in range(10)
+                    }
+                else:
+                    assert set(payload["note_ids"]) == {f"{group}-{index}" for index in range(3)}
+            linked_run_ids.append({run.id for run in runs})
+        assert linked_run_ids[0] & linked_run_ids[1] == {cluster_run.id}
