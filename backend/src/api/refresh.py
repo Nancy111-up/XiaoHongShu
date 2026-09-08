@@ -20,13 +20,18 @@ def build_router(
 
     @router.post("/refresh-jobs", status_code=202)
     async def create_refresh_job(background_tasks: BackgroundTasks) -> object:
-        active = await repository.active_job()
-        if active is not None:
+        created = await repository.admit(status="queued", updated_at=datetime.now(UTC))
+        if created is None:
+            active = await repository.active_job()
+            if active is None:
+                created = await repository.admit(status="queued", updated_at=datetime.now(UTC))
+        if created is None:
+            active = await repository.active_job()
+            assert active is not None
             return JSONResponse(
                 status_code=409,
                 content={"code": "REFRESH_ALREADY_RUNNING", "running_job_id": active.id},
             )
-        created = await repository.create(status="queued", updated_at=datetime.now(UTC))
         background_tasks.add_task(run_refresh, created.id)
         return {"id": created.id, "status": created.status}
 

@@ -3,7 +3,17 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from uuid import uuid4
 
-from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.db.base import Base
@@ -17,12 +27,34 @@ def _utcnow() -> datetime:
     return datetime.now(UTC)
 
 
+ACTIVE_REFRESH_STATUSES = frozenset(
+    {
+        "queued",
+        "collecting_search",
+        "collecting_detail",
+        "normalizing",
+        "clustering",
+        "enriching",
+        "scoring_trend",
+        "scoring_opportunity",
+        "generating_preview",
+    }
+)
+
+
+def _active_refresh_slot(context) -> str | None:  # type: ignore[no-untyped-def]
+    status = context.get_current_parameters()["status"]
+    return "active" if status in ACTIVE_REFRESH_STATUSES else None
+
+
 class RefreshJob(Base):
     __tablename__ = "refresh_jobs"
+    __table_args__ = (Index("uq_refresh_jobs_single_active", "active_slot", unique=True),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     mode: Mapped[str] = mapped_column(String(32))
     status: Mapped[str] = mapped_column(String(32), index=True)
+    active_slot: Mapped[str | None] = mapped_column(String(16), default=_active_refresh_slot)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = mapped_column(
