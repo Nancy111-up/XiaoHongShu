@@ -178,6 +178,7 @@ async def test_two_pass_refresh_continues_after_keyword_failure(tmp_path: Path) 
     assert len([note for note in notes.notes if note.keyword is not None]) == 40
     assert statuses.keyword_results == (["校园足球", "夜跑"], ["足球装备"])
     assert result.status == "partial_success"
+    assert statuses.error_summaries == ["搜索采集失败，请检查采集账号后重试。"]
 
 
 @pytest.mark.asyncio

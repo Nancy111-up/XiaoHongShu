@@ -117,10 +117,11 @@ class TwoPassRefreshCoordinator:
         job = await self._statuses.record_keyword_results(
             job.id, successful_keywords, failed_keywords, now
         )
-        if not successful_keywords:
+        if failed_keywords:
             await self._statuses.record_error_summary(
                 job.id, _SEARCH_COLLECTION_FAILURE_SUMMARY, now
             )
+        if not successful_keywords:
             return await self._statuses.transition(job.id, "failed", now)
 
         job = await self._statuses.transition(job.id, "normalizing", now)
