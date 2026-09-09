@@ -105,11 +105,12 @@ class TwoPassRefreshCoordinator:
         for keyword_index, keyword in enumerate(keywords):
             raw_path = raw_root / "search" / f"{keyword_index:02d}"
             execution = await self._crawler.run_search(keyword, raw_path)
+            records = _read_crawler_jsonl(raw_path, "search")
             if execution.exit_code != 0:
                 failed_keywords.append(keyword)
-                continue
+                if not records:
+                    continue
             successful_keywords.append(keyword)
-            records = _read_crawler_jsonl(raw_path, "search")
             accepted = []
             for record in records:
                 note_id = record.get("note_id")

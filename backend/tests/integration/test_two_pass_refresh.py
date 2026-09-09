@@ -16,10 +16,12 @@ class FakeAdapter:
         self,
         now: datetime,
         failed_keywords: set[str] | None = None,
+        partially_failed_keywords: set[str] | None = None,
         detail_fails: bool = False,
     ) -> None:
         self.now = now
         self.failed_keywords = failed_keywords or set()
+        self.partially_failed_keywords = partially_failed_keywords or set()
         self.detail_fails = detail_fails
         self.search_calls: list[str] = []
         self.detail_calls: list[list[str]] = []
@@ -44,6 +46,8 @@ class FakeAdapter:
                 }
             )
         _write_jsonl(raw_path / "search.jsonl", records)
+        if keyword in self.partially_failed_keywords:
+            return CrawlExecution(self.now, self.now, 1, raw_path, "fixture partial failure")
         return _execution(raw_path, self.now)
 
     async def run_detail(self, note_ids: list[str], raw_path: Path) -> CrawlExecution:
@@ -178,6 +182,27 @@ async def test_two_pass_refresh_continues_after_keyword_failure(tmp_path: Path) 
     assert statuses.keyword_results == (["校园足球", "夜跑"], ["足球装备"])
     assert result.status == "partial_success"
     assert statuses.error_summaries == ["搜索采集失败，请检查采集账号后重试。"]
+
+
+@pytest.mark.asyncio
+async def test_two_pass_refresh_keeps_records_written_before_search_process_fails(
+    tmp_path: Path,
+) -> None:
+    now = datetime(2025, 9, 6, 12, tzinfo=UTC)
+    job = RefreshJob(id="job-salvaged", mode="manual", status="queued", updated_at=now)
+    adapter = FakeAdapter(now, partially_failed_keywords={"校园足球"})
+    notes = CapturingNoteRepository()
+    statuses = CapturingStatusRepository(job)
+    coordinator = TwoPassRefreshCoordinator(
+        adapter, notes, statuses, RepresentativeResolver()
+    )
+
+    result = await coordinator.run(job, ["校园足球"], tmp_path, now)
+
+    assert len([note for note in notes.notes if note.keyword is not None]) == 20
+    assert statuses.keyword_results == (["校园足球"], ["校园足球"])
+    assert statuses.error_summaries == ["搜索采集失败，请检查采集账号后重试。"]
+    assert result.status == "partial_success"
 
 
 @pytest.mark.asyncio
