@@ -1,13 +1,14 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { getOpportunities, startRefresh } from "../shared/api"
-import type { OpportunityResponse } from "../shared/types"
+import { getOpportunities, getRefreshJob, startRefresh } from "../shared/api"
+import { toRefreshProgress, type OpportunityResponse, type RefreshProgress } from "../shared/types"
 
 export function useOpportunities() {
   const [data, setData] = useState<OpportunityResponse>({ items: [], data_source: "unavailable" })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [refreshProgress, setRefreshProgress] = useState<RefreshProgress | null>(null)
 
   const reload = useCallback(async () => {
     setLoading(true)
@@ -22,9 +23,32 @@ export function useOpportunities() {
   }, [])
 
   const refresh = useCallback(async () => {
-    await startRefresh()
-    await reload()
-  }, [reload])
+    if (refreshProgress && !refreshProgress.terminal) return
+    const started = await startRefresh()
+    setRefreshProgress(toRefreshProgress(started.job, started.joinedExistingJob))
+  }, [refreshProgress])
+
+  useEffect(() => {
+    if (!refreshProgress || refreshProgress.terminal) return
+    const timer = window.setTimeout(() => {
+      void getRefreshJob(refreshProgress.id).then(async job => {
+        const nextProgress = toRefreshProgress(job, refreshProgress.joinedExistingJob)
+        setRefreshProgress(nextProgress)
+        if (nextProgress.terminal && (job.status === "completed" || job.status === "partial_success")) {
+          await reload()
+        }
+      }).catch(() => {
+        setRefreshProgress({
+          ...refreshProgress,
+          status: "failed",
+          stageLabel: "刷新失败",
+          terminal: true,
+          safeErrorMessage: "刷新进度暂时不可用，请检查登录状态和数据源配置后重试。",
+        })
+      })
+    }, 1500)
+    return () => window.clearTimeout(timer)
+  }, [refreshProgress, reload])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -35,5 +59,5 @@ export function useOpportunities() {
     })
     return () => controller.abort()
   }, [])
-  return { ...data, loading, error, reload, refresh }
+  return { ...data, loading, error, reload, refresh, refreshProgress, refreshing: Boolean(refreshProgress && !refreshProgress.terminal) }
 }

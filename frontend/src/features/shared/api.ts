@@ -1,4 +1,4 @@
-import type { OpportunityResponse } from "./types"
+import type { OpportunityResponse, RefreshJob } from "./types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"
 
@@ -8,9 +8,39 @@ export async function getOpportunities(signal?: AbortSignal): Promise<Opportunit
   return response.json() as Promise<OpportunityResponse>
 }
 
-export async function startRefresh(): Promise<void> {
+export async function startRefresh(): Promise<{ job: RefreshJob; joinedExistingJob: boolean }> {
   const response = await fetch(`${API_BASE}/refresh-jobs`, { method: "POST" })
-  if (!response.ok && response.status !== 409) throw new Error("刷新任务启动失败")
+  const payload = await response.json() as Record<string, unknown>
+  if (response.ok && typeof payload.id === "string" && typeof payload.status === "string") {
+    return { job: refreshJobFrom(payload), joinedExistingJob: false }
+  }
+  if (response.status === 409 && payload.code === "REFRESH_ALREADY_RUNNING" && typeof payload.running_job_id === "string") {
+    return {
+      job: refreshJobFrom({ id: payload.running_job_id, status: "queued" }),
+      joinedExistingJob: true,
+    }
+  }
+  throw new Error("刷新任务启动失败")
+}
+
+export async function getRefreshJob(id: string): Promise<RefreshJob> {
+  const response = await fetch(`${API_BASE}/refresh-jobs/${id}`)
+  if (!response.ok) throw new Error("刷新进度暂时不可用")
+  return refreshJobFrom(await response.json() as Record<string, unknown>)
+}
+
+function refreshJobFrom(payload: Record<string, unknown>): RefreshJob {
+  if (typeof payload.id !== "string" || typeof payload.status !== "string") {
+    throw new Error("刷新任务响应无效")
+  }
+  return {
+    id: payload.id,
+    status: payload.status,
+    successfulKeywords: Array.isArray(payload.successfulKeywords) ? payload.successfulKeywords.filter((value): value is string => typeof value === "string") : [],
+    failedKeywords: Array.isArray(payload.failedKeywords) ? payload.failedKeywords.filter((value): value is string => typeof value === "string") : [],
+    errorSummary: typeof payload.errorSummary === "string" ? payload.errorSummary : null,
+    updatedAt: typeof payload.updatedAt === "string" ? payload.updatedAt : "",
+  }
 }
 
 export async function getWorkspaceModule(path: string): Promise<Record<string, unknown>> {
