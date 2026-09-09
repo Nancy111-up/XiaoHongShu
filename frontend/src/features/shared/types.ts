@@ -22,12 +22,12 @@ export type Opportunity = {
     tags?: string[]
   }
   updatedAt: string
-  data_source: "live" | "fixture" | "demo"
+  data_source: "live" | "partial" | "fixture" | "demo"
 }
 
 export type OpportunityResponse = {
   items: Opportunity[]
-  data_source: "live" | "fixture" | "demo" | "unavailable"
+  data_source: "live" | "partial" | "fixture" | "demo" | "unavailable"
 }
 
 export type Draft = {

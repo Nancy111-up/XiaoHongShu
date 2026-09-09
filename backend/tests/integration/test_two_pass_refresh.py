@@ -146,8 +146,7 @@ async def test_two_pass_refresh_limits_search_then_details_only_representatives(
     search_notes = [note for note in notes.notes if note.keyword is not None]
     assert len(search_notes) == 120
     assert all(
-        note.published_at and note.published_at >= now - timedelta(days=7)
-        for note in search_notes
+        note.published_at and note.published_at >= now - timedelta(days=7) for note in search_notes
     )
     assert adapter.detail_calls == [[note.note_id for note in search_notes[:5]]]
     assert len(resolver.received) == 120
@@ -226,3 +225,81 @@ def _write_jsonl(path: Path, records: list[dict[str, object]]) -> None:
 
 def _execution(raw_path: Path, now: datetime) -> CrawlExecution:
     return CrawlExecution(now, now, 0, raw_path, None)
+
+
+class OfficialLayoutAdapter:
+    def __init__(self, now: datetime, *, empty: bool = False) -> None:
+        self.now = now
+        self.empty = empty
+        self.detail_calls: list[list[str]] = []
+
+    async def run_search(self, keyword: str, raw_path: Path) -> CrawlExecution:
+        output = raw_path / "xhs" / "jsonl" / "search_contents_2026-09-09.jsonl"
+        output.parent.mkdir(parents=True)
+        records = (
+            []
+            if self.empty
+            else [
+                {
+                    "note_id": "signed-note",
+                    "title": "夜跑装备",
+                    "desc": "真实搜索结果",
+                    "time": int((self.now - timedelta(days=1)).timestamp() * 1000),
+                    "liked_count": 88,
+                    "note_url": (
+                        "https://www.xiaohongshu.com/explore/signed-note"
+                        "?xsec_token=private-token&xsec_source=pc_search"
+                    ),
+                }
+            ]
+        )
+        _write_jsonl(output, records)
+        return _execution(raw_path, self.now)
+
+    async def run_detail(self, note_ids: list[str], raw_path: Path) -> CrawlExecution:
+        self.detail_calls.append(note_ids)
+        output = raw_path / "xhs" / "jsonl"
+        output.mkdir(parents=True)
+        _write_jsonl(output / "detail_contents_2026-09-09.jsonl", [])
+        _write_jsonl(output / "detail_comments_2026-09-09.jsonl", [])
+        return _execution(raw_path, self.now)
+
+
+@pytest.mark.asyncio
+async def test_official_dated_outputs_keep_signed_detail_target_private(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 9, 12, tzinfo=UTC)
+    job = RefreshJob(id="official-layout", mode="manual", status="queued", updated_at=now)
+    adapter = OfficialLayoutAdapter(now)
+    notes = CapturingNoteRepository()
+    coordinator = TwoPassRefreshCoordinator(
+        adapter, notes, CapturingStatusRepository(job), RepresentativeResolver()
+    )
+
+    result = await coordinator.run(job, ["夜跑"], tmp_path, now)
+
+    assert result.status == "completed"
+    assert adapter.detail_calls == [
+        [
+            "https://www.xiaohongshu.com/explore/signed-note"
+            "?xsec_token=private-token&xsec_source=pc_search"
+        ]
+    ]
+    assert notes.notes[0].url == "https://www.xiaohongshu.com/explore/signed-note"
+    assert "private-token" not in json.dumps(notes.notes[0].raw_payload)
+
+
+@pytest.mark.asyncio
+async def test_successful_empty_search_skips_detail_pass(tmp_path: Path) -> None:
+    now = datetime(2026, 9, 9, 12, tzinfo=UTC)
+    job = RefreshJob(id="empty-search", mode="manual", status="queued", updated_at=now)
+    adapter = OfficialLayoutAdapter(now, empty=True)
+    statuses = CapturingStatusRepository(job)
+    coordinator = TwoPassRefreshCoordinator(
+        adapter, CapturingNoteRepository(), statuses, RepresentativeResolver()
+    )
+
+    result = await coordinator.run(job, ["没有结果"], tmp_path, now)
+
+    assert result.status == "completed"
+    assert adapter.detail_calls == []
+    assert statuses.transitions == ["collecting_search", "normalizing", "clustering", "completed"]

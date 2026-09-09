@@ -159,6 +159,91 @@ async def test_accept_reject_and_schedule_workflow(tmp_path, when: str) -> None:
         await service.accept_opportunity("filtered")
 
 
+@pytest.mark.asyncio
+async def test_reject_and_existing_draft_schedule_work_without_ai(tmp_path) -> None:
+    factory = create_session_factory(f"sqlite+aiosqlite:///{(tmp_path / 'no-ai.db').as_posix()}")
+    now = datetime(2026, 9, 9, tzinfo=UTC)
+    async with factory() as session:
+        async with session.bind.begin() as connection:  # type: ignore[union-attr]
+            await connection.run_sync(Base.metadata.create_all)
+        session.add_all(
+            [
+                RefreshJob(id="job", mode="manual", status="completed", started_at=now),
+                Topic(
+                    topic_id="topic",
+                    canonical_name="夜跑",
+                    first_seen_at=now,
+                    last_seen_at=now,
+                    status="Growing",
+                ),
+                TopicSnapshot(
+                    id="snapshot",
+                    topic_id="topic",
+                    job_id="job",
+                    captured_at=now,
+                    note_count=1,
+                    unique_author_count=1,
+                    comment_sample_count=0,
+                    raw_metrics_json="{}",
+                    normalized_metrics_json="{}",
+                    current_heat=70,
+                    lifecycle="Growing",
+                    confidence="Medium",
+                ),
+                BrandProfile(version=1, profile_json="{}"),
+                Opportunity(
+                    id="opportunity",
+                    topic_id="topic",
+                    topic_snapshot_id="snapshot",
+                    job_id="job",
+                    brand_profile_version=1,
+                    title="夜跑",
+                    score=70,
+                    decision="Recommend",
+                    eligibility="eligible",
+                    risk="low",
+                    confidence="Medium",
+                    score_breakdown_json="{}",
+                    reasons_json="{}",
+                ),
+            ]
+        )
+        await session.commit()
+
+    async with factory() as session:
+        opportunity = await session.get(Opportunity, "opportunity")
+        assert opportunity is not None
+    draft = await ContentRepository(factory).save_draft(
+        opportunity,
+        FullDraftContent(
+            titles=["一", "二", "三"],
+            body="正文",
+            tags=[],
+            image_count=0,
+            image_advice=[],
+            risk_check={},
+            prompt_version="v1",
+        ),
+    )
+    app = FastAPI()
+    app.include_router(
+        build_router(factory, ContentService(ContentRepository(factory), None)), prefix="/api"
+    )
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        rejection = await client.post(
+            "/api/opportunities/opportunity/reject", json={"reason": "other"}
+        )
+        scheduled = await client.post(
+            f"/api/drafts/{draft.id}/schedule",
+            params={"when": (now + timedelta(days=1)).isoformat()},
+        )
+        accept = await client.post("/api/opportunities/opportunity/accept")
+
+    assert rejection.status_code == 200 and rejection.json()["reason"] == "other"
+    assert scheduled.status_code == 200 and scheduled.json()["draftId"] == draft.id
+    assert accept.status_code == 503 and accept.json()["code"] == "ANALYSIS_UNAVAILABLE"
+
+
 def test_reject_reason_only_accepts_contract_enums() -> None:
     with pytest.raises(ValidationError):
         RejectInput(reason="change_the_model")

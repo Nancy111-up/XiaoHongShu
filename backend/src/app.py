@@ -1,3 +1,7 @@
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -8,6 +12,7 @@ from src.content.generator import build_content_service
 from src.content.service import ContentService
 from src.db.session import session_factory
 from src.refresh.runner import build_refresh_runner
+from src.refresh.status import RefreshRepository, recover_stale_jobs
 
 
 def create_app(
@@ -15,7 +20,12 @@ def create_app(
     content_service: ContentService | None = None,
     run_refresh: RunRefresh | None = None,
 ) -> FastAPI:
-    app = FastAPI(title="体育品牌运营 Agent", version="0.1.0")
+    @asynccontextmanager
+    async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+        await recover_stale_jobs(RefreshRepository(sessions), datetime.now(UTC))
+        yield
+
+    app = FastAPI(title="体育品牌运营 Agent", version="0.1.0", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],

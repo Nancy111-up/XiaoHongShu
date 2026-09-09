@@ -9,6 +9,7 @@ from typing import Any, cast
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from src.content.generator import copy_preview_from_llm
 from src.db.models import (
     BrandProfile,
     Comment,
@@ -162,7 +163,9 @@ class OpportunityPipeline:
                     reasons=reasons,
                     recommended_angle=gap.angle,
                     product_connection=explanation.product_connection,
-                    copy_preview=preview.model_dump(),
+                    copy_preview=copy_preview_from_llm(
+                        preview, topic.canonical_name, gap.angle
+                    ).model_dump(),
                     llm_run_ids=run_ids,
                 )
             )

@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { DataSourceBadge } from "../shared/DataSourceBadge"
-import { acceptOpportunity, rejectOpportunity } from "../shared/api"
+import { acceptOpportunity, getAnalytics, rejectOpportunity } from "../shared/api"
 import { ContentStudio } from "../workspace/ContentStudio"
 import { ContentCalendar } from "../workspace/ContentCalendar"
 import { AnalyticsDashboard } from "../workspace/AnalyticsDashboard"
@@ -17,7 +17,18 @@ export function OpportunityPage() {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeModule, setActiveModule] = useState(0)
   const [notice, setNotice] = useState<string | null>(null)
+  const [draftCount, setDraftCount] = useState(0)
   const selected = items.find((item) => item.id === selectedId) ?? items[0]
+
+  useEffect(() => {
+    const controller = new AbortController()
+    void getAnalytics(controller.signal)
+      .then(data => {
+        if (Number.isFinite(data.drafts)) setDraftCount(data.drafts)
+      })
+      .catch(() => undefined)
+    return () => controller.abort()
+  }, [])
 
   async function handleRefresh() {
     try {
@@ -40,7 +51,7 @@ export function OpportunityPage() {
       <header className="topbar"><div><p className="eyebrow">{["OPPORTUNITY DESK","CONTENT STUDIO","CALENDAR","ANALYTICS","BRAND BRAIN"][activeModule]}</p><h1>{navItems[activeModule]}</h1></div><div className="topbar-actions"><DataSourceBadge source={data_source}/>{activeModule===0&&<button type="button" className="refresh-button" disabled={refreshing} aria-busy={refreshing} onClick={()=>void handleRefresh()}>↻ 刷新热点</button>}<span className="avatar">林</span></div></header>
       {notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice(null)}>×</button></div>}
       {activeModule===0&&refreshProgress&&<RefreshProgressPanel progress={refreshProgress} connectionError={refreshConnectionError}/>}
-      {activeModule===0&&<><section className="summary-strip"><Summary label="总机会" value={items.length}/><Summary label="高潜机会" value={highPotential}/><Summary label="待审核" value={manualReview}/><Summary label="已生成草稿" value={0}/></section><nav className="insight-tabs" aria-label="机会视图"><button className="active">热点洞察</button><button>趋势变化</button><button>内容缺口</button><button>品牌适配</button><button>产品机会</button></nav></>}
+      {activeModule===0&&<><section className="summary-strip"><Summary label="总机会" value={items.length}/><Summary label="高潜机会" value={highPotential}/><Summary label="待审核" value={manualReview}/><Summary label="已生成草稿" value={draftCount}/></section><nav className="insight-tabs" aria-label="机会视图"><button className="active">热点洞察</button><button>趋势变化</button><button>内容缺口</button><button>品牌适配</button><button>产品机会</button></nav></>}
       {activeModule===1 && <ContentStudio onOpportunities={()=>setActiveModule(0)} onCalendar={()=>setActiveModule(2)}/>}
       {activeModule===2 && <ContentCalendar onStudio={()=>setActiveModule(1)}/>}
       {activeModule===3 && <AnalyticsDashboard onOpportunities={()=>setActiveModule(0)}/>}

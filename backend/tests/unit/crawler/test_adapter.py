@@ -29,14 +29,18 @@ def test_search_command_disables_comments_and_limits_raw_notes(
 
 
 def test_detail_command_only_fetches_first_level_comments(settings: MediaCrawlerSettings) -> None:
+    signed_target = (
+        "https://www.xiaohongshu.com/explore/n1?xsec_token=private-token&xsec_source=pc_search"
+    )
     joined = " ".join(
-        MediaCrawlerAdapter(settings).build_detail_command(["n1", "n2"], Path("detail"))
+        MediaCrawlerAdapter(settings).build_detail_command([signed_target, "n2"], Path("detail"))
     )
     assert "--type detail" in joined
     assert "--get_comment true" in joined
     assert "--get_sub_comment false" in joined
     assert "--max_comments_count_singlenotes 20" in joined
     assert "--max_concurrency_num 1" in joined
+    assert f"--specified_id {signed_target},n2" in joined
 
 
 @pytest.mark.parametrize("note_ids", [[], [""], [" ", "\t"]])

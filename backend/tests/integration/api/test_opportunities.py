@@ -90,3 +90,67 @@ def test_opportunity_response_matches_frontend_contract(tmp_path) -> None:
         "data_source",
     }
     assert item["topicId"] == "topic" and item["data_source"] == "live"
+
+
+def test_populated_response_marks_partial_refresh_data(tmp_path) -> None:
+    factory = create_session_factory(f"sqlite+aiosqlite:///{(tmp_path / 'partial.db').as_posix()}")
+    now = datetime.now(UTC)
+
+    async def seed() -> None:
+        async with factory() as session:
+            async with session.bind.begin() as connection:  # type: ignore[union-attr]
+                await connection.run_sync(Base.metadata.create_all)
+            session.add_all(
+                [
+                    RefreshJob(
+                        id="job",
+                        mode="manual",
+                        status="partial_success",
+                        started_at=now,
+                        updated_at=now,
+                    ),
+                    Topic(
+                        topic_id="topic",
+                        canonical_name="城市夜跑",
+                        first_seen_at=now,
+                        last_seen_at=now,
+                        status="Growing",
+                    ),
+                    TopicSnapshot(
+                        id="snap",
+                        topic_id="topic",
+                        job_id="job",
+                        captured_at=now,
+                        note_count=1,
+                        unique_author_count=1,
+                        comment_sample_count=0,
+                        raw_metrics_json="{}",
+                        normalized_metrics_json="{}",
+                        current_heat=70,
+                        lifecycle="Growing",
+                        confidence="Medium",
+                    ),
+                    Opportunity(
+                        id="opp",
+                        topic_id="topic",
+                        topic_snapshot_id="snap",
+                        job_id="job",
+                        brand_profile_version=1,
+                        title="城市夜跑",
+                        score=70,
+                        decision="Recommend",
+                        eligibility="eligible",
+                        risk="low",
+                        confidence="Medium",
+                        score_breakdown_json="{}",
+                        reasons_json="{}",
+                        updated_at=now,
+                    ),
+                ]
+            )
+            await session.commit()
+
+    asyncio.run(seed())
+    response = TestClient(create_app(factory)).get("/api/opportunities")
+    assert response.json()["data_source"] == "partial"
+    assert response.json()["items"][0]["data_source"] == "partial"

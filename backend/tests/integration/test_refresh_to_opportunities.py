@@ -153,7 +153,13 @@ async def test_refresh_persists_source_links_scores_and_llm_provenance(tmp_path)
     assert 0 <= item["currentHeat"] <= 100
     assert item["trendScore"] is None and item["trendStage"] == "Observing"
     assert item["scores"]["content_opportunity"] == 75
-    assert item["preview"]["title"] == "夜跑装备怎么选"
+    assert item["preview"]["titles"] == [
+        "夜跑装备怎么选",
+        "夜跑装备｜夜跑装备怎么选",
+        "夜跑装备怎么选｜实用指南",
+    ]
+    assert item["preview"]["angle"] == "夜跑装备选择"
+    assert item["preview"]["body"].startswith("从使用场景出发")
     async with factory() as session:
         opportunity = await session.get(Opportunity, item["id"])
         runs = list(

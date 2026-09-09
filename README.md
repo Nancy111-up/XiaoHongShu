@@ -70,8 +70,10 @@ uv run --frozen alembic upgrade head
 
 ```powershell
 cd backend
-uv run --frozen uvicorn src.app:create_app --factory --reload --port 8000
+uv run --frozen uvicorn src.app:create_app --factory --port 8000
 ```
+
+Windows 下请不要为这条命令添加 `--reload`。Uvicorn 的重载进程会切换到不支持异步子进程的事件循环，导致 MediaCrawler 无法启动；修改后端代码后请停止并重新运行上述命令。
 
 健康检查位于 `http://localhost:8000/health`，API 根路径为 `http://localhost:8000/api`。
 

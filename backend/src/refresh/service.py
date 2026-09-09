@@ -6,6 +6,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Protocol
+from urllib.parse import parse_qs, urlsplit
 
 from src.crawler.adapter import CrawlExecution
 from src.db.models import RefreshJob
@@ -97,6 +98,7 @@ class TwoPassRefreshCoordinator:
     ) -> RefreshJob:
         job = await self._statuses.transition(job.id, "collecting_search", now)
         normalized_search: list[NormalizedNote] = []
+        private_detail_targets: dict[str, str] = {}
         successful_keywords: list[str] = []
         failed_keywords: list[str] = []
         cutoff = now - timedelta(days=7)
@@ -107,9 +109,17 @@ class TwoPassRefreshCoordinator:
                 failed_keywords.append(keyword)
                 continue
             successful_keywords.append(keyword)
-            records = _read_jsonl(raw_path / "search.jsonl")
+            records = _read_crawler_jsonl(raw_path, "search")
             accepted = []
             for record in records:
+                note_id = record.get("note_id")
+                note_url = record.get("note_url")
+                if (
+                    isinstance(note_id, str)
+                    and isinstance(note_url, str)
+                    and _is_signed_xhs_url(note_url)
+                ):
+                    private_detail_targets[note_id] = note_url
                 record["source_keyword"] = keyword
                 note = normalize_search_record(record, execution.finished_at)
                 if note.published_at is not None and note.published_at >= cutoff:
@@ -133,9 +143,17 @@ class TwoPassRefreshCoordinator:
         representative_ids = await self._topic_resolver.resolve_representatives(
             normalized_search, max_per_topic=5
         )
+        if not representative_ids:
+            final_status = "partial_success" if failed_keywords else "completed"
+            return await self._statuses.transition(
+                job.id, final_status if self._finalize else "enriching", now
+            )
         job = await self._statuses.transition(job.id, "collecting_detail", now)
         detail_path = raw_root / "detail"
-        execution = await self._crawler.run_detail(representative_ids, detail_path)
+        detail_targets = [
+            private_detail_targets.get(note_id, note_id) for note_id in representative_ids
+        ]
+        execution = await self._crawler.run_detail(detail_targets, detail_path)
         if execution.exit_code != 0:
             await self._statuses.record_error_summary(
                 job.id, _DETAIL_COLLECTION_FAILURE_SUMMARY, now
@@ -145,11 +163,11 @@ class TwoPassRefreshCoordinator:
             )
         detail_notes = [
             normalize_search_record(record, execution.finished_at)
-            for record in _read_jsonl(detail_path / "detail.jsonl")
+            for record in _read_crawler_jsonl(detail_path, "detail")
         ]
         comments = [
             normalize_comment_record(record, job.id)
-            for record in _read_jsonl(detail_path / "comments.jsonl")
+            for record in _read_crawler_jsonl(detail_path, "comments")
         ]
         await self._notes.upsert_refresh_data(job, detail_notes, comments)
         final_status = "partial_success" if failed_keywords else "completed"
@@ -164,3 +182,29 @@ def _read_jsonl(path: Path) -> list[dict[str, object]]:
     return [
         json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
     ]
+
+
+def _read_crawler_jsonl(raw_path: Path, kind: str) -> list[dict[str, object]]:
+    official_names = {
+        "search": "search_contents_*.jsonl",
+        "detail": "detail_contents_*.jsonl",
+        "comments": "detail_comments_*.jsonl",
+    }
+    legacy_names = {
+        "search": "search.jsonl",
+        "detail": "detail.jsonl",
+        "comments": "comments.jsonl",
+    }
+    paths = sorted((raw_path / "xhs" / "jsonl").glob(official_names[kind]))
+    if not paths:
+        paths = [raw_path / legacy_names[kind]]
+    return [record for path in paths for record in _read_jsonl(path)]
+
+
+def _is_signed_xhs_url(value: str) -> bool:
+    parsed = urlsplit(value)
+    return (
+        parsed.scheme == "https"
+        and parsed.netloc in {"www.xiaohongshu.com", "xiaohongshu.com"}
+        and bool(parse_qs(parsed.query).get("xsec_token"))
+    )

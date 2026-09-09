@@ -5,6 +5,7 @@ from typing import Protocol
 
 from src.content.schemas import CopyPreview, FullDraftContent, RejectInput
 from src.db.models import CalendarItem, Draft, Opportunity, RejectFeedback
+from src.llm.service import LLMAnalysisUnavailableError
 
 
 class ContentStore(Protocol):
@@ -23,7 +24,7 @@ class ContentGenerator(Protocol):
 
 
 class ContentService:
-    def __init__(self, repository: ContentStore, generator: ContentGenerator) -> None:
+    def __init__(self, repository: ContentStore, generator: ContentGenerator | None) -> None:
         self._repository = repository
         self._generator = generator
 
@@ -34,6 +35,8 @@ class ContentService:
         return opportunity
 
     async def generate_preview(self, opportunity_id: str) -> CopyPreview:
+        if self._generator is None:
+            raise LLMAnalysisUnavailableError("AI configuration is required")
         preview = await self._generator.generate_preview(await self._opportunity(opportunity_id))
         await self._repository.save_preview(opportunity_id, preview)
         return preview
@@ -42,6 +45,8 @@ class ContentService:
         opportunity = await self._opportunity(opportunity_id)
         if opportunity.eligibility == "filtered":
             raise ValueError("filtered opportunity cannot be accepted")
+        if self._generator is None:
+            raise LLMAnalysisUnavailableError("AI configuration is required")
         content = await self._generator.generate_full_copy(opportunity)
         return await self._repository.save_draft(opportunity, content)
 

@@ -52,6 +52,43 @@ describe("OpportunityPage", () => {
     expect(screen.getByRole("button", { name: "接受并生成草稿" })).toBeInTheDocument()
   })
 
+  it("renders the preview contract persisted by the opportunity pipeline", async () => {
+    const pipelineItem = {
+      ...items[0],
+      preview: {
+        titles:["夜跑装备怎么选", "夜跑装备｜夜跑装备怎么选", "夜跑装备怎么选｜实用指南"],
+        angle:"夜跑装备选择",
+        body:"从使用场景出发\n场景\n选择",
+        format:"图文",
+        tags:[],
+      },
+    }
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+      ok:true,
+      json:async()=>url.endsWith("/analytics")
+        ? {opportunities:1,drafts:4}
+        : {items:[pipelineItem],data_source:"live"},
+    })))
+
+    render(<OpportunityPage />)
+
+    expect(await screen.findByText("夜跑装备怎么选")).toBeInTheDocument()
+    expect(screen.getByText("夜跑装备选择")).toBeInTheDocument()
+    expect(screen.getByText(/从使用场景出发/)).toBeInTheDocument()
+    expect(screen.getByText("4")).toBeInTheDocument()
+  })
+
+  it("labels populated partial results as partial live data", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => ({
+      ok:true,
+      json:async()=>url.endsWith("/analytics")
+        ? {opportunities:2,drafts:1}
+        : {items,data_source:"partial"},
+    })))
+    render(<OpportunityPage />)
+    expect(await screen.findByText("部分实时数据")).toBeInTheDocument()
+  })
+
   it("changes the detail when another opportunity is selected", async () => {
     render(<OpportunityPage />)
     fireEvent.click(await screen.findByRole("button", { name: /城市夜跑装备清单/ }))
@@ -203,7 +240,7 @@ describe("OpportunityPage", () => {
     fireEvent.click(refreshButton)
     expect(refreshButton).toBeDisabled()
     fireEvent.click(refreshButton)
-    expect(fetch).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(fetch).mock.calls.filter(([, options]) => options?.method === "POST")).toHaveLength(1)
 
     await act(async () => { resolveStart({ ok:true, status:202, json:async()=>({ id:"job-live", status:"queued" }) }) })
   })

@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from src.content.schemas import RejectInput
 from src.content.service import ContentService
 from src.db.models import CalendarItem, Draft
+from src.llm.service import LLMAnalysisUnavailableError
 
 
 def build_router(
@@ -36,6 +37,8 @@ def build_router(
             return JSONResponse(status_code=503, content={"code": "ANALYSIS_UNAVAILABLE"})
         try:
             return _draft(await service.accept_opportunity(opportunity_id))
+        except LLMAnalysisUnavailableError:
+            return JSONResponse(status_code=503, content={"code": "ANALYSIS_UNAVAILABLE"})
         except ValueError as exc:
             return JSONResponse(
                 status_code=422, content={"code": "OPPORTUNITY_FILTERED", "message": str(exc)}

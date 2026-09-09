@@ -15,6 +15,7 @@ class CopyPreview(BaseModel):
     cover_direction: str
     product_connection: str
     cost: Literal["low", "medium", "high"]
+    cta: str | None = None
 
 
 class FullDraftContent(BaseModel):
