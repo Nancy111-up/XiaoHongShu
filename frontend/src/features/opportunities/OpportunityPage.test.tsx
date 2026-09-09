@@ -52,6 +52,18 @@ describe("OpportunityPage", () => {
     expect(screen.getByRole("button", { name: "接受并生成草稿" })).toBeInTheDocument()
   })
 
+  it("updates the real draft total after accepting an opportunity", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST") return { ok:true, status:200, json:async()=>({}) }
+      if (url.endsWith("/analytics")) return { ok:true, json:async()=>({opportunities:2,drafts:0}) }
+      return { ok:true, json:async()=>({items,data_source:"live"}) }
+    }))
+    render(<OpportunityPage />)
+    fireEvent.click(await screen.findByRole("button", { name: "接受并生成草稿" }))
+    expect(await screen.findByText("草稿已生成")).toBeInTheDocument()
+    expect(screen.getByText("已生成草稿").previousElementSibling).toHaveTextContent("1")
+  })
+
   it("renders the preview contract persisted by the opportunity pipeline", async () => {
     const pipelineItem = {
       ...items[0],
