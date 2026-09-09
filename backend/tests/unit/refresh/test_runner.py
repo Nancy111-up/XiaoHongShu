@@ -3,7 +3,7 @@ from datetime import UTC, datetime
 import pytest
 
 from src.db.models import RefreshJob
-from src.refresh.runner import RefreshRunner
+from src.refresh.runner import RefreshRunner, _select_keywords
 
 
 class FakeRepository:
@@ -42,6 +42,27 @@ class RecordingCoordinator:
         if self.error is not None:
             raise self.error
         return job
+
+
+def test_keyword_selection_prefers_products_and_is_limited_to_contract_six() -> None:
+    payload = {
+        "positioning": "一整段不应优先作为搜索词的品牌定位。",
+        "audiences": ["大学生足球爱好者", "校园体育社团"],
+        "scenes": ["校园训练", "业余比赛"],
+        "products": [
+            {"name": f"产品 {index}", "category": f"分类 {index}"}
+            for index in range(1, 8)
+        ],
+    }
+
+    assert _select_keywords(payload) == [
+        "产品 1",
+        "产品 2",
+        "产品 3",
+        "产品 4",
+        "产品 5",
+        "产品 6",
+    ]
 
 
 @pytest.mark.asyncio

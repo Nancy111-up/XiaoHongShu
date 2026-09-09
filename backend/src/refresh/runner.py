@@ -44,18 +44,34 @@ class BrandKeywordProvider:
         if profile is None:
             return []
         payload = json.loads(profile.profile_json)
-        terms = [
-            payload.get("positioning", ""),
-            *payload.get("audiences", []),
-            *payload.get("scenes", []),
-            *(product.get("name", "") for product in payload.get("products", [])),
-            *(product.get("category", "") for product in payload.get("products", [])),
-            *(product.get("scene", "") for product in payload.get("products", [])),
-        ]
-        normalized_terms = (
-            term.strip() for term in terms if isinstance(term, str) and term.strip()
-        )
-        return list(dict.fromkeys(normalized_terms))
+        return _select_keywords(payload)
+
+
+def _select_keywords(payload: dict[str, object]) -> list[str]:
+    """Choose at most the six concise brand terms required by the contract."""
+
+    products = payload.get("products")
+    product_records = (
+        [item for item in products if isinstance(item, dict)]
+        if isinstance(products, list)
+        else []
+    )
+    terms: list[object] = [
+        *(product.get("name", "") for product in product_records),
+        *_list_values(payload.get("scenes")),
+        *_list_values(payload.get("audiences")),
+        *(product.get("category", "") for product in product_records),
+        *(product.get("scene", "") for product in product_records),
+        payload.get("positioning", ""),
+    ]
+    normalized = (
+        term.strip() for term in terms if isinstance(term, str) and term.strip()
+    )
+    return list(dict.fromkeys(normalized))[:6]
+
+
+def _list_values(value: object) -> list[object]:
+    return value if isinstance(value, list) else []
 
 
 class RepresentativeResolver:
