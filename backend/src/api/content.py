@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from fastapi import APIRouter
 from fastapi.responses import JSONResponse
@@ -28,17 +28,7 @@ def build_router(
             items = list(
                 await session.scalars(select(CalendarItem).order_by(CalendarItem.scheduled_for))
             )
-        return {
-            "items": [
-                {
-                    "id": item.id,
-                    "draftId": item.draft_id,
-                    "scheduledFor": item.scheduled_for.isoformat(),
-                    "status": item.status,
-                }
-                for item in items
-            ]
-        }
+        return {"items": [_calendar(item) for item in items]}
 
     @router.post("/opportunities/{opportunity_id}/accept")
     async def accept(opportunity_id: str) -> object:
@@ -63,14 +53,22 @@ def build_router(
         if service is None:
             return JSONResponse(status_code=503, content={"code": "CONTENT_SERVICE_UNAVAILABLE"})
         item = await service.schedule_draft(draft_id, when)
-        return {
-            "id": item.id,
-            "draftId": item.draft_id,
-            "scheduledFor": item.scheduled_for.isoformat(),
-            "status": item.status,
-        }
+        return _calendar(item)
 
     return router
+
+
+def _calendar(item: CalendarItem) -> dict[str, str]:
+    # The calendar contract is an explicit UTC instant, including SQLite's naive reads.
+    when = item.scheduled_for
+    if when.tzinfo is None:
+        when = when.replace(tzinfo=UTC)
+    return {
+        "id": item.id,
+        "draftId": item.draft_id,
+        "scheduledFor": when.astimezone(UTC).isoformat(),
+        "status": item.status,
+    }
 
 
 def _draft(draft: Draft) -> dict[str, object]:

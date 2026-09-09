@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import json
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
@@ -64,7 +64,10 @@ class ContentRepository:
         async with self._sessions() as session:
             if await session.get(Draft, draft_id) is None:
                 raise LookupError("draft not found")
-            item = CalendarItem(draft_id=draft_id, scheduled_for=when, status="scheduled")
+            # SQLite drops timezone offsets, so persist every schedule as UTC wall time.
+            item = CalendarItem(
+                draft_id=draft_id, scheduled_for=when.astimezone(UTC), status="scheduled"
+            )
             session.add(item)
             await session.commit()
             await session.refresh(item)

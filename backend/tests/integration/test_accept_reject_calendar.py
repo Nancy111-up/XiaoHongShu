@@ -1,16 +1,19 @@
 from __future__ import annotations
 
 import json
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
+from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
 
+from src.api.content import build_router
 from src.content.repository import ContentRepository
 from src.content.schemas import CopyPreview, FullDraftContent, RejectInput
 from src.content.service import ContentService
 from src.db.base import Base
-from src.db.models import BrandProfile, Opportunity, RefreshJob, Topic, TopicSnapshot
+from src.db.models import BrandProfile, CalendarItem, Opportunity, RefreshJob, Topic, TopicSnapshot
 from src.db.session import create_session_factory
 
 
@@ -43,7 +46,15 @@ class FakeGenerator:
 
 
 @pytest.mark.asyncio
-async def test_accept_reject_and_schedule_workflow(tmp_path) -> None:
+@pytest.mark.parametrize(
+    "when",
+    [
+        "2026-09-15T01:30:00Z",
+        "2026-09-15T09:30:00+08:00",
+        "2026-09-14T20:30:00-05:00",
+    ],
+)
+async def test_accept_reject_and_schedule_workflow(tmp_path, when: str) -> None:
     factory = create_session_factory(f"sqlite+aiosqlite:///{(tmp_path / 'workflow.db').as_posix()}")
     now = datetime(2026, 9, 7, tzinfo=UTC)
     async with factory() as session:
@@ -113,7 +124,27 @@ async def test_accept_reject_and_schedule_workflow(tmp_path) -> None:
     preview = await service.generate_preview("opportunity")
     draft = await service.accept_opportunity("opportunity")
     rejection = await service.reject_opportunity("opportunity", RejectInput(reason="tone_mismatch"))
-    scheduled = await service.schedule_draft(draft.id, now + timedelta(days=1))
+    app = FastAPI()
+    app.include_router(build_router(factory, service), prefix="/api")
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        scheduled = await client.post(f"/api/drafts/{draft.id}/schedule", params={"when": when})
+        assert scheduled.status_code == 200
+        calendar = await client.get("/api/calendar")
+        assert calendar.status_code == 200
+
+    # The POST refresh and later GET both cross a real SQLite persistence boundary.
+    # All three input offsets represent 09:30 in Shanghai and must return that instant.
+    for item in [scheduled.json(), calendar.json()["items"][0]]:
+        assert item["draftId"] == draft.id
+        assert item["scheduledFor"] == "2026-09-15T01:30:00+00:00"
+        shanghai = datetime.fromisoformat(item["scheduledFor"]).astimezone(
+            timezone(timedelta(hours=8))
+        )
+        assert shanghai.strftime("%Y-%m-%d %H:%M") == "2026-09-15 09:30"
+    async with factory() as session:
+        stored = await session.get(CalendarItem, scheduled.json()["id"])
+        assert stored is not None
+        assert stored.scheduled_for == datetime(2026, 9, 15, 1, 30)
 
     assert len(preview.titles) == 3
     assert draft.source_opportunity_id == "opportunity"
@@ -123,7 +154,6 @@ async def test_accept_reject_and_schedule_workflow(tmp_path) -> None:
     assert json.loads(draft.image_plan_json)["image_count"] == 3
     assert json.loads(draft.risk_check_json)["status"] == "passed"
     assert rejection.reason == "tone_mismatch"
-    assert scheduled.draft_id == draft.id
 
     with pytest.raises(ValueError, match="filtered"):
         await service.accept_opportunity("filtered")
