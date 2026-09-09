@@ -30,6 +30,32 @@ export type OpportunityResponse = {
   data_source: "live" | "fixture" | "demo" | "unavailable"
 }
 
+export type Draft = {
+  id: string
+  sourceOpportunityId: string
+  topicId: string
+  brandProfileVersion: number
+  promptVersion: string
+  titles: string[]
+  body: string
+  tags: string[]
+  status: string
+}
+
+export type CalendarItem = { id: string; draftId: string; scheduledFor: string; status: string }
+export type Analytics = { opportunities: number; drafts: number }
+export type BrandProfile = {
+  positioning: string
+  audiences: string[]
+  scenes: string[]
+  tone: string[]
+  forbidden: string[]
+  content_strategy: { traffic: number; brand: number; product: number }
+  products: Array<{ id: string; name: string; category?: string; audience?: string; scene?: string; selling_point?: string; goal?: string; inventory?: string }>
+}
+export type BrandProfileVersion = { version: number; profile: BrandProfile }
+export type BrandProfileResponse = BrandProfileVersion | { status: "not_configured" }
+
 export type RefreshJob = {
   id: string
   status: string

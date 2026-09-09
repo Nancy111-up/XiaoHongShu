@@ -1,4 +1,4 @@
-import type { OpportunityResponse, RefreshJob } from "./types"
+import type { Analytics, BrandProfile, BrandProfileResponse, BrandProfileVersion, CalendarItem, Draft, OpportunityResponse, RefreshJob } from "./types"
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api"
 
@@ -44,10 +44,21 @@ function refreshJobFrom(payload: Record<string, unknown>): RefreshJob {
   }
 }
 
-export async function getWorkspaceModule(path: string): Promise<Record<string, unknown>> {
-  const response = await fetch(`${API_BASE}/${path}`)
+async function getWorkspaceModule<T>(path: string, signal?: AbortSignal): Promise<T> {
+  const response = await fetch(`${API_BASE}/${path}`, { signal })
   if (!response.ok) throw new Error("模块数据加载失败")
-  return response.json() as Promise<Record<string, unknown>>
+  return response.json() as Promise<T>
+}
+
+export const getDrafts = (signal?: AbortSignal) => getWorkspaceModule<{ items: Draft[] }>("drafts", signal)
+export const getCalendar = (signal?: AbortSignal) => getWorkspaceModule<{ items: CalendarItem[] }>("calendar", signal)
+export const getAnalytics = (signal?: AbortSignal) => getWorkspaceModule<Analytics>("analytics", signal)
+export const getBrandProfile = (signal?: AbortSignal) => getWorkspaceModule<BrandProfileResponse>("brand-profile", signal)
+
+export async function scheduleDraft(id: string, when: string): Promise<CalendarItem> {
+  const response = await fetch(`${API_BASE}/drafts/${encodeURIComponent(id)}/schedule?${new URLSearchParams({ when })}`, { method: "POST" })
+  if (!response.ok) throw new Error("排期保存失败，请检查服务配置或查看是否已有排期。")
+  return response.json() as Promise<CalendarItem>
 }
 
 export async function acceptOpportunity(id: string): Promise<void> {
@@ -64,12 +75,12 @@ export async function rejectOpportunity(id: string): Promise<void> {
   if (!response.ok) throw new Error("暂不采用操作失败")
 }
 
-export async function saveBrandProfile(positioning: string): Promise<void> {
+export async function saveBrandProfile(profile: BrandProfile): Promise<BrandProfileVersion> {
   const response = await fetch(`${API_BASE}/brand-profile`, {
     method: "PUT",
     headers: { "Content-Type":"application/json" },
-    body: JSON.stringify({ positioning, audiences:[], scenes:[], tone:[], forbidden:[],
-      content_strategy:{ traffic:40, brand:35, product:25 }, products:[] }),
+    body: JSON.stringify(profile),
   })
   if (!response.ok) throw new Error("品牌大脑保存失败")
+  return response.json() as Promise<BrandProfileVersion>
 }

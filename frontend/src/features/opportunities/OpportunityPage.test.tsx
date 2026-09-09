@@ -18,6 +18,7 @@ const items = [
 beforeEach(() => {
   vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
     if (options?.method === "POST") return { ok:true, status:202, json:async()=>({ id:"job-default", status:"queued" }) }
+    if (url.endsWith("/brand-profile")) return { ok:true, json:async()=>({status:"not_configured"}) }
     return { ok:true, json:async()=>({items,data_source:"live"}) }
   }))
 })
@@ -63,7 +64,7 @@ describe("OpportunityPage", () => {
     fireEvent.click(await screen.findByRole("button", { name: /品牌大脑/ }))
     expect(screen.getByRole("heading", { name: "品牌大脑", level: 1 })).toBeInTheDocument()
     expect(screen.getByText("品牌定位与内容策略")).toBeInTheDocument()
-    expect(await screen.findByText("已载入 2 条记录")).toBeInTheDocument()
+    expect(await screen.findByText(/尚未配置品牌大脑/)).toBeInTheDocument()
     expect(screen.getByLabelText("品牌定位")).toBeInTheDocument()
     expect(screen.getByRole("button", { name:"保存品牌大脑" })).toBeInTheDocument()
   })
