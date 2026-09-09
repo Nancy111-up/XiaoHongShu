@@ -9,13 +9,10 @@ from typing import Protocol
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from src.core.config import Settings
 from src.crawler.adapter import MediaCrawlerAdapter
 from src.crawler.settings import MediaCrawlerSettings
 from src.db.models import BrandProfile, RefreshJob
-from src.llm.client import OpenAICompatibleTransport, StructuredLLMClient
-from src.llm.repository import LLMRunRepository
-from src.llm.service import LLMService
+from src.llm.factory import build_llm_service
 from src.notes.repository import NoteRepository
 from src.notes.schemas import NormalizedNote
 from src.opportunities.pipeline import OpportunityPipeline
@@ -147,21 +144,5 @@ def build_refresh_runner(sessions: async_sessionmaker[AsyncSession]) -> RefreshR
         BrandKeywordProvider(sessions),
         project_root / "data" / "raw",
         verify_checkout=settings.verify_checkout,
-        pipeline=OpportunityPipeline(sessions, _configured_llm(sessions, project_root)),
-    )
-
-
-def _configured_llm(
-    sessions: async_sessionmaker[AsyncSession], project_root: Path
-) -> LLMService | None:
-    settings = Settings()
-    if settings.llm_api_key is None or not settings.llm_api_key.get_secret_value().strip():
-        return None
-    return LLMService(
-        StructuredLLMClient(
-            OpenAICompatibleTransport(api_key=settings.llm_api_key, base_url=settings.llm_base_url)
-        ),
-        LLMRunRepository(sessions),
-        project_root / "backend" / "prompts",
-        settings.llm_model,
+        pipeline=OpportunityPipeline(sessions, build_llm_service(sessions)),
     )

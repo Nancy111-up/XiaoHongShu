@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from src.api.refresh import RunRefresh
 from src.api.router import build_api_router
+from src.content.generator import build_content_service
 from src.content.service import ContentService
 from src.db.session import session_factory
 from src.refresh.runner import build_refresh_runner
@@ -22,7 +23,8 @@ def create_app(
         allow_headers=["*"],
     )
     refresh = run_refresh or build_refresh_runner(sessions).start
-    app.include_router(build_api_router(sessions, content_service, refresh))
+    content = content_service if content_service is not None else build_content_service(sessions)
+    app.include_router(build_api_router(sessions, content, refresh))
 
     @app.get("/health")
     async def health() -> dict[str, str]:
