@@ -8,15 +8,16 @@ export async function getOpportunities(signal?: AbortSignal): Promise<Opportunit
   return response.json() as Promise<OpportunityResponse>
 }
 
-export async function startRefresh(): Promise<{ job: RefreshJob; joinedExistingJob: boolean }> {
+export async function startRefresh(): Promise<{ job: RefreshJob | null; jobId: string; joinedExistingJob: boolean }> {
   const response = await fetch(`${API_BASE}/refresh-jobs`, { method: "POST" })
   const payload = await response.json() as Record<string, unknown>
   if (response.ok && typeof payload.id === "string" && typeof payload.status === "string") {
-    return { job: refreshJobFrom(payload), joinedExistingJob: false }
+    return { job: refreshJobFrom(payload), jobId: payload.id, joinedExistingJob: false }
   }
   if (response.status === 409 && payload.code === "REFRESH_ALREADY_RUNNING" && typeof payload.running_job_id === "string") {
     return {
-      job: refreshJobFrom({ id: payload.running_job_id, status: "queued" }),
+      job: null,
+      jobId: payload.running_job_id,
       joinedExistingJob: true,
     }
   }

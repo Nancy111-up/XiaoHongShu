@@ -119,6 +119,21 @@ describe("OpportunityPage", () => {
     expect(screen.getByText("城市夜跑")).toBeInTheDocument()
   })
 
+  it("shows the safe partial-success summary even when every keyword was collected", async () => {
+    vi.useFakeTimers()
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST") return { ok:true, status:202, json:async()=>({ id:"job-live", status:"queued" }) }
+      if (url.includes("/refresh-jobs/job-live")) return { ok:true, json:async()=>job("partial_success", { errorSummary:"AI 服务未配置，请在品牌大脑中配置模型。" }) }
+      return { ok:true, json:async()=>({items,data_source:"live"}) }
+    }))
+    render(<OpportunityPage />)
+    fireEvent.click(screen.getByRole("button", { name: /刷新热点/ }))
+    await act(async () => {})
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    expect(screen.getByText("部分完成")).toBeInTheDocument()
+    expect(screen.getByText("AI 服务未配置，请在品牌大脑中配置模型。")).toBeInTheDocument()
+  })
+
   it("guides the user to login, configure, and retry when the refresh fails", async () => {
     vi.useFakeTimers()
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
@@ -135,6 +150,31 @@ describe("OpportunityPage", () => {
     expect(screen.getByText("数据源暂时不可用")).toBeInTheDocument()
   })
 
+  it("keeps polling the last confirmed job after a progress connection error", async () => {
+    vi.useFakeTimers()
+    let pollCount = 0
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST") return { ok:true, status:202, json:async()=>({ id:"job-live", status:"queued" }) }
+      if (url.includes("/refresh-jobs/job-live")) {
+        pollCount += 1
+        if (pollCount === 1) throw new Error("temporary network loss")
+        return { ok:true, json:async()=>job("completed") }
+      }
+      return { ok:true, json:async()=>({items,data_source:"live"}) }
+    }))
+    render(<OpportunityPage />)
+    fireEvent.click(screen.getByRole("button", { name: /刷新热点/ }))
+    await act(async () => {})
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    expect(screen.getByText("等待刷新任务")).toBeInTheDocument()
+    expect(screen.getByText("刷新进度暂时不可用，正在继续尝试。" )).toBeInTheDocument()
+    expect(screen.getByRole("button", { name: /刷新热点/ })).toBeDisabled()
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
+    expect(screen.getByText("刷新完成")).toBeInTheDocument()
+    expect(screen.queryByText("刷新进度暂时不可用，正在继续尝试。")).not.toBeInTheDocument()
+  })
+
   it("continues polling the active job returned by a duplicate refresh response", async () => {
     vi.useFakeTimers()
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
@@ -145,8 +185,25 @@ describe("OpportunityPage", () => {
     render(<OpportunityPage />)
     fireEvent.click(screen.getByRole("button", { name: /刷新热点/ }))
     await act(async () => {})
+    expect(screen.getByText("正在获取已有任务进度")).toBeInTheDocument()
     expect(screen.getByText("已有刷新任务正在进行，将继续显示其进度。")).toBeInTheDocument()
     await act(async () => { await vi.advanceTimersByTimeAsync(1500) })
     expect(screen.getByText("正在补充笔记详情")).toBeInTheDocument()
+  })
+
+  it("disables refresh before a pending POST can be started twice", async () => {
+    let resolveStart: (response: { ok: boolean; status: number; json: () => Promise<{ id: string; status: string }> }) => void = () => {}
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string, options?: RequestInit) => {
+      if (options?.method === "POST") return new Promise(resolve => { resolveStart = resolve })
+      return { ok:true, json:async()=>({items,data_source:"live"}) }
+    }))
+    render(<OpportunityPage />)
+    const refreshButton = screen.getByRole("button", { name: /刷新热点/ })
+    fireEvent.click(refreshButton)
+    expect(refreshButton).toBeDisabled()
+    fireEvent.click(refreshButton)
+    expect(fetch).toHaveBeenCalledTimes(2)
+
+    await act(async () => { resolveStart({ ok:true, status:202, json:async()=>({ id:"job-live", status:"queued" }) }) })
   })
 })

@@ -73,9 +73,23 @@ export function toRefreshProgress(job: RefreshJob, joinedExistingJob = false): R
     stageLabel: refreshStageLabels[job.status] ?? "正在刷新数据",
     terminal,
     failedKeywords: job.failedKeywords,
-    safeErrorMessage: ["failed", "interrupted"].includes(job.status)
-      ? job.errorSummary ?? "刷新未完成，请检查登录状态和数据源配置后重试。"
-      : null,
+    safeErrorMessage: job.status === "partial_success"
+      ? job.errorSummary
+      : ["failed", "interrupted"].includes(job.status)
+        ? job.errorSummary ?? "刷新未完成，请检查登录状态和数据源配置后重试。"
+        : null,
     joinedExistingJob,
+  }
+}
+
+export function awaitingExistingRefreshProgress(id: string): RefreshProgress {
+  return {
+    id,
+    status: "awaiting_existing_status",
+    stageLabel: "正在获取已有任务进度",
+    terminal: false,
+    failedKeywords: [],
+    safeErrorMessage: null,
+    joinedExistingJob: true,
   }
 }

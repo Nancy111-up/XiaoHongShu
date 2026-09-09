@@ -9,7 +9,7 @@ import { useOpportunities } from "./useOpportunities"
 const navItems = ["热点机会", "内容工作室", "内容日历", "数据复盘", "品牌大脑"]
 
 export function OpportunityPage() {
-  const { items, data_source, loading, error, refresh, refreshProgress, refreshing } = useOpportunities()
+  const { items, data_source, loading, error, refresh, refreshProgress, refreshConnectionError, refreshing } = useOpportunities()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [activeModule, setActiveModule] = useState(0)
   const [notice, setNotice] = useState<string | null>(null)
@@ -35,14 +35,14 @@ export function OpportunityPage() {
     <section className="app-area">
       <header className="topbar"><div><p className="eyebrow">{["OPPORTUNITY DESK","CONTENT STUDIO","CALENDAR","ANALYTICS","BRAND BRAIN"][activeModule]}</p><h1>{navItems[activeModule]}</h1></div><div className="topbar-actions"><DataSourceBadge source={data_source}/>{activeModule===0&&<button type="button" className="refresh-button" disabled={refreshing} aria-busy={refreshing} onClick={()=>void handleRefresh()}>↻ 刷新热点</button>}<span className="avatar">林</span></div></header>
       {notice&&<div className="notice" role="status">{notice}<button onClick={()=>setNotice(null)}>×</button></div>}
-      {activeModule===0&&refreshProgress&&<RefreshProgressPanel progress={refreshProgress}/>}
+      {activeModule===0&&refreshProgress&&<RefreshProgressPanel progress={refreshProgress} connectionError={refreshConnectionError}/>}
       {activeModule===0&&<><section className="summary-strip"><Summary label="总机会" value={items.length}/><Summary label="高潜机会" value={highPotential}/><Summary label="待审核" value={manualReview}/><Summary label="已生成草稿" value={0}/></section><nav className="insight-tabs" aria-label="机会视图"><button className="active">热点洞察</button><button>趋势变化</button><button>内容缺口</button><button>品牌适配</button><button>产品机会</button></nav></>}
       {activeModule!==0 ? <ModuleView index={activeModule}/> : loading ? <StatePanel text="正在读取最新机会…"/> : error ? <StatePanel text={error}/> : !selected ? <StatePanel text="还没有可展示的机会，请先刷新热点。"/> : <Workspace items={items} selected={selected} onSelect={setSelectedId} onNotice={setNotice}/>} 
     </section>
   </main>
 }
 
-function RefreshProgressPanel({ progress }: { progress: NonNullable<ReturnType<typeof useOpportunities>["refreshProgress"]> }) {
+function RefreshProgressPanel({ progress, connectionError }: { progress: NonNullable<ReturnType<typeof useOpportunities>["refreshProgress"]>; connectionError: string | null }) {
   const isFailure = progress.status === "failed" || progress.status === "interrupted"
   return <section className={`refresh-progress ${progress.terminal ? "terminal" : "active"} ${isFailure ? "failed" : ""}`} role="status" aria-live="polite">
     <div className="refresh-progress-main">
@@ -55,7 +55,8 @@ function RefreshProgressPanel({ progress }: { progress: NonNullable<ReturnType<t
     <div className="refresh-progress-copy">
       {progress.joinedExistingJob && !progress.terminal && <p>已有刷新任务正在进行，将继续显示其进度。</p>}
       {progress.failedKeywords.length > 0 && <p>未完成关键词：{progress.failedKeywords.map(keyword => <span className="failed-keyword" key={keyword}>{keyword}</span>)}</p>}
-      {isFailure && <p>{progress.safeErrorMessage ?? "刷新未完成，请检查登录状态和数据源配置后重试。"}</p>}
+      {progress.safeErrorMessage && <p>{progress.safeErrorMessage}</p>}
+      {connectionError && <p>{connectionError}</p>}
       {isFailure && <p>请检查登录状态和数据源配置后重试。</p>}
     </div>
   </section>
