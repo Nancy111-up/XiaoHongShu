@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { OpportunityPage } from "./OpportunityPage"
 
 const items = [
-  { id:"one", topicId:"t1", title:"开学季校园跑", currentHeat:86, trendScore:78,
+  { id:"one", topicId:"t1", title:"开学季校园跑", currentHeat:86.1234, trendScore:78,
     trendStage:"Growing", score:88, decision:"High Opportunity", goal:"品牌", eligibility:"eligible",
     risk:"low", confidence:"High", scores:{}, reasons:{why_now:"讨论增长"}, sources:[],
     preview:{titles:["标题一","标题二","标题三"], body:"预览正文", angle:"校园跑指南"},
@@ -49,6 +49,8 @@ describe("OpportunityPage", () => {
     expect(screen.getByText("待审核")).toBeInTheDocument()
     expect(screen.getByText("已生成草稿")).toBeInTheDocument()
     expect(screen.getByTestId("app-shell")).toHaveClass("fresh-forest")
+    expect(screen.getByText("热度 86.1")).toBeInTheDocument()
+    expect(screen.getByText("86.1")).toBeInTheDocument()
     expect(screen.getByRole("button", { name: "接受并生成草稿" })).toBeInTheDocument()
   })
 

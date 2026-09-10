@@ -54,8 +54,6 @@ class OpportunityPipeline:
             existing = list(
                 await session.scalars(select(Opportunity).where(Opportunity.job_id == job_id))
             )
-            if existing:
-                return existing
             evidence = list(
                 await session.execute(
                     select(Note, NoteSnapshot)
@@ -73,8 +71,11 @@ class OpportunityPipeline:
             raise LLMAnalysisUnavailableError("AI configuration and brand profile are required")
         notes = {note.note_id: (note, snapshot) for note, snapshot in evidence}
         snapshots = await self._snapshots(job, notes)
-        results: list[Opportunity] = []
+        results: list[Opportunity] = existing
+        completed_topic_ids = {opportunity.topic_id for opportunity in existing}
         for snapshot in snapshots:
+            if snapshot.topic_id in completed_topic_ids:
+                continue
             async with self._sessions() as session:
                 topic = await session.get(Topic, snapshot.topic_id)
                 assert topic is not None

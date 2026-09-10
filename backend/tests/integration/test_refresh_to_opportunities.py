@@ -24,7 +24,7 @@ from src.db.models import (
 )
 from src.db.session import create_session_factory
 from src.llm.repository import LLMRunRepository
-from src.llm.service import LLMService
+from src.llm.service import LLMAnalysisUnavailableError, LLMService
 from src.notes.repository import NoteRepository
 from src.refresh.runner import BrandKeywordProvider, RefreshRunner, RepresentativeResolver
 from src.refresh.service import TwoPassRefreshCoordinator
@@ -283,6 +283,19 @@ class TwoTopicEvidenceClient(EvidenceClient):
         return await super().complete(**kwargs)
 
 
+class FailSecondCopyOnceClient(TwoTopicEvidenceClient):
+    def __init__(self) -> None:
+        super().__init__()
+        self.copy_calls = 0
+
+    async def complete(self, **kwargs: object) -> str:
+        if kwargs["json_schema"]["title"] == "CopyPreview":
+            self.copy_calls += 1
+            if self.copy_calls == 2:
+                raise RuntimeError("temporary provider failure")
+        return await super().complete(**kwargs)
+
+
 @pytest.mark.asyncio
 async def test_two_topics_link_only_their_own_identity_comment_and_evidence_runs(tmp_path) -> None:
     factory, statuses, _, pipeline = await setup_refresh(tmp_path, TwoTopicEvidenceClient())
@@ -374,3 +387,61 @@ async def test_two_topics_link_only_their_own_identity_comment_and_evidence_runs
                     assert set(payload["note_ids"]) == {f"{group}-{index}" for index in range(3)}
             linked_run_ids.append({run.id for run in runs})
         assert linked_run_ids[0] & linked_run_ids[1] == {cluster_run.id}
+
+
+@pytest.mark.asyncio
+async def test_pipeline_retry_resumes_after_a_partial_provider_failure(tmp_path) -> None:
+    client = FailSecondCopyOnceClient()
+    factory, statuses, _, pipeline = await setup_refresh(tmp_path, client)
+    job = await statuses.create(status="enriching", updated_at=NOW)
+    async with factory() as session:
+        for group in ("running", "football"):
+            session.add(
+                Topic(
+                    topic_id=group,
+                    canonical_name=group,
+                    first_seen_at=NOW,
+                    last_seen_at=NOW,
+                    status="Observing",
+                )
+            )
+            for index in range(3):
+                note_id = f"{group}-{index}"
+                session.add(
+                    Note(
+                        note_id=note_id,
+                        title=note_id,
+                        body=f"{group} evidence",
+                        author_id=f"author-{note_id}",
+                        first_seen_at=NOW,
+                        last_seen_at=NOW,
+                        published_at=NOW,
+                        raw_payload_json="{}",
+                        url=f"https://www.xiaohongshu.com/explore/{note_id}",
+                    )
+                )
+                session.add(
+                    NoteSnapshot(
+                        job_id=job.id,
+                        note_id=note_id,
+                        captured_at=NOW,
+                        likes=10,
+                        collects=2,
+                        comments=5,
+                        data_completeness=1,
+                    )
+                )
+        await session.commit()
+
+    with pytest.raises(LLMAnalysisUnavailableError, match="AI provider request failed"):
+        await pipeline.build(job.id)
+    async with factory() as session:
+        first_ids = list(
+            await session.scalars(select(Opportunity.id).where(Opportunity.job_id == job.id))
+        )
+    assert len(first_ids) == 1
+
+    resumed = await pipeline.build(job.id)
+
+    assert len(resumed) == 2
+    assert first_ids[0] in {opportunity.id for opportunity in resumed}
