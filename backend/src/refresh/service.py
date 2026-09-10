@@ -15,6 +15,7 @@ from src.notes.schemas import NormalizedComment, NormalizedNote
 from src.refresh.status import RefreshJobStore
 
 _SEARCH_COLLECTION_FAILURE_SUMMARY = "搜索采集失败，请检查采集账号后重试。"
+_EMPTY_SEARCH_FAILURE_SUMMARY = "未采集到有效内容，请确认小红书登录状态后重试。"
 _DETAIL_COLLECTION_FAILURE_SUMMARY = "详情采集失败，已保留搜索结果。"
 
 
@@ -136,6 +137,11 @@ class TwoPassRefreshCoordinator:
                 job.id, _SEARCH_COLLECTION_FAILURE_SUMMARY, now
             )
         if not successful_keywords:
+            return await self._statuses.transition(job.id, "failed", now)
+        if not normalized_search:
+            await self._statuses.record_error_summary(
+                job.id, _EMPTY_SEARCH_FAILURE_SUMMARY, now
+            )
             return await self._statuses.transition(job.id, "failed", now)
 
         job = await self._statuses.transition(job.id, "normalizing", now)

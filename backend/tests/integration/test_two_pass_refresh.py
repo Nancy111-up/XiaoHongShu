@@ -314,7 +314,7 @@ async def test_official_dated_outputs_keep_signed_detail_target_private(tmp_path
 
 
 @pytest.mark.asyncio
-async def test_successful_empty_search_skips_detail_pass(tmp_path: Path) -> None:
+async def test_refresh_fails_when_every_successful_search_is_empty(tmp_path: Path) -> None:
     now = datetime(2026, 9, 9, 12, tzinfo=UTC)
     job = RefreshJob(id="empty-search", mode="manual", status="queued", updated_at=now)
     adapter = OfficialLayoutAdapter(now, empty=True)
@@ -325,6 +325,7 @@ async def test_successful_empty_search_skips_detail_pass(tmp_path: Path) -> None
 
     result = await coordinator.run(job, ["没有结果"], tmp_path, now)
 
-    assert result.status == "completed"
+    assert result.status == "failed"
     assert adapter.detail_calls == []
-    assert statuses.transitions == ["collecting_search", "normalizing", "clustering", "completed"]
+    assert statuses.error_summaries == ["未采集到有效内容，请确认小红书登录状态后重试。"]
+    assert statuses.transitions == ["collecting_search", "failed"]
