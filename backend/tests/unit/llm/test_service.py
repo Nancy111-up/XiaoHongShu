@@ -67,6 +67,29 @@ async def test_comment_analysis_rejects_invented_evidence_ids(tmp_path: Path) ->
     assert runs.saved[-1]["parsed_response"] is not None
 
 
+@pytest.mark.asyncio
+async def test_comment_analysis_maps_unique_verbatim_content_back_to_evidence_id(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "comment_analysis_v1.md").write_text("Analyze comments", encoding="utf-8")
+    client = FakeClient(
+        [
+            '{"analyzed_comment_count":1,"categories":{"question":["怎么买？"],'
+            '"pain_point":[],"request":[],"purchase_intent":[],"experience":[],"other":[]}}'
+        ]
+    )
+    runs = FakeRuns()
+    service = LLMService(client=client, runs=runs, prompts=tmp_path, model="test-model")
+
+    result = await service.analyze_comments(
+        job_id="j1", topic_id="t1", comments=[{"comment_id": "c1", "content": "怎么买？"}]
+    )
+
+    assert result.categories.question == ["c1"]
+    assert client.call_count == 1
+    assert runs.saved[-1]["status"] == "completed"
+
+
 def test_service_exposes_all_contract_operations() -> None:
     expected = {
         "cluster_topics",
